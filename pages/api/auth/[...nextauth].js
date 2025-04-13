@@ -1,40 +1,70 @@
 import NextAuth from 'next-auth';
-import GithubProvider from 'next-auth/providers/github';
-import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
-import clientPromise from '../../../lib/mongodb';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { compare } from 'bcryptjs';
+import dbConnect from '../../../lib/db';
+import User from '../../../models/User';
 
 /**
  * NextAuth.js configuration
  * @see https://next-auth.js.org/configuration/options
  */
 export const authOptions = {
-  providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-    }),
-    // Add more providers here as needed
-    // @see https://next-auth.js.org/providers/
-  ],
-  adapter: MongoDBAdapter(clientPromise),
   secret: process.env.NEXTAUTH_SECRET,
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        try {
+          await dbConnect();
+          const user = await User.findOne({ email: credentials.email });
+          
+          if (!user) {
+            throw new Error('No user found with this email');
+          }
+
+          const isValid = await compare(credentials.password, user.password);
+          if (!isValid) {
+            throw new Error('Invalid password');
+          }
+
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
+          throw error;
+        }
+      }
+    })
+  ],
   session: {
     strategy: 'jwt',
   },
   pages: {
     signIn: '/auth/signin', // Custom sign-in page (create this page in pages/auth/signin.js)
-    // Add custom error, sign-out pages here if needed
+    error: '/auth/error',
   },
   callbacks: {
-    async session({ session, token, user }) {
-      // Add custom session handling here if needed
-      return session;
-    },
-    async jwt({ token, user, account, profile }) {
-      // Add custom JWT handling here if needed
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
       return token;
     },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id;
+      }
+      return session;
+    }
   },
+  debug: process.env.NODE_ENV === 'development',
 };
 
 export default NextAuth(authOptions); 
