@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "A2E - API Specification": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "apidog-mcp-server@latest",
+        "--site-id=746061"
+      ]
+    }
+  }
+} 
