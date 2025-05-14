@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
-export async function POST() {
+export async function GET() {
   console.log('[Session Token API] Starting session token request...');
   
   try {
     const apiKey = process.env.ANAM_API_KEY;
     // Use the specific persona ID as fallback if env var is not set
-    const personaId = process.env.NEXT_PUBLIC_PERSONA_ID || "717207e2-aa3a-409e-9fe6-3b240cfc26d0";
+    const personaId = process.env.NEXT_PUBLIC_PERSONA_ID || "66ccab16-8fb1-4ef2-99ec-78f28a492bba";
 
     // Enhanced credentials validation
     const credentialsCheck = {
@@ -59,7 +59,7 @@ export async function POST() {
     // Enhanced request payload with explicit persona ID
     const requestPayload = {
       personaConfig: {
-        id: "personaId" // Using the specific persona ID
+        id: "66ccab16-8fb1-4ef2-99ec-78f28a492bba" // Using the specific persona ID
       }
     };
 
