@@ -47,13 +47,20 @@ async function startServer(port) {
     const envContent = `
 NEXT_PUBLIC_VERCEL_URL=localhost:${port}
 NEXTAUTH_URL=http://localhost:${port}
-MONGODB_URI=${process.env.MONGODB_URI || 'your_mongodb_uri'}
-NEXTAUTH_SECRET=${process.env.NEXTAUTH_SECRET || 'your-super-secret-key-at-least-32-characters'}
-ASSEMBLYAI_API_KEY=${process.env.ASSEMBLYAI_API_KEY || 'your_assemblyai_key'}
+${process.env.MONGODB_URI ? `MONGODB_URI=${process.env.MONGODB_URI}` : '# MONGODB_URI=your_mongodb_uri (Please set this in your system environment)'}
+${process.env.NEXTAUTH_SECRET ? `NEXTAUTH_SECRET=${process.env.NEXTAUTH_SECRET}` : '# NEXTAUTH_SECRET=your-secret-key (Please set this in your system environment)'}
+${process.env.ASSEMBLYAI_API_KEY ? `ASSEMBLYAI_API_KEY=${process.env.ASSEMBLYAI_API_KEY}` : '# ASSEMBLYAI_API_KEY=your_api_key (Please set this in your system environment)'}
 `;
 
     fs.writeFileSync('.env.local', envContent.trim());
     console.log(`\n📝 Updated environment variables in .env.local`);
+
+    // Verify required environment variables
+    if (!process.env.MONGODB_URI) {
+      console.warn('\n⚠️  WARNING: MONGODB_URI is not defined in environment!');
+      console.warn('   Your application may not function correctly.');
+      console.warn('   Please set this value in your environment or .env.local file.\n');
+    }
 
     // Start Next.js
     const nextBin = path.resolve(__dirname, '../node_modules/.bin/next');

@@ -3,9 +3,14 @@ require('dotenv').config();
 
 async function insertTestStation() {
     try {
-        // Use environment variable or fallback to a correctly formatted URI
-        const uri = process.env.MONGODB_URI || 
-                   '[MONGODB_URI_PLACEHOLDER]';
+        // Check for MongoDB URI in environment variables
+        const uri = process.env.MONGODB_URI;
+        
+        if (!uri) {
+            console.error('ERROR: MONGODB_URI environment variable is not defined');
+            console.error('Please set it in your .env.local file or environment');
+            process.exit(1);
+        }
         
         // Connect to MongoDB
         console.log('Connecting to MongoDB...');

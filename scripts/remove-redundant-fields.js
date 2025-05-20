@@ -1,7 +1,15 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const MONGODB_URI = '[MONGODB_URI_PLACEHOLDER]';
+// Use environment variable instead of hardcoded connection string
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// Validate environment variable
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI environment variable is not defined');
+  console.error('Please set it in your .env.local file or environment');
+  process.exit(1);
+}
 
 const main = async () => {
   try {
