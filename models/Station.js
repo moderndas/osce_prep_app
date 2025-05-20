@@ -10,37 +10,28 @@ const StationSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Clinical background is required'],
   },
-  expectedAnswers: {
-    type: [String],
-    required: [true, 'At least one expected answer is required'],
-  },
-  stationInstructions: {
+  systemPrompt: {
     type: String,
     required: false,
+    description: 'System prompt for station instructions and questions'
   },
-  initialQuestion: {
+  analysisPrompt: {
     type: String,
     required: false,
-    description: 'Question to be presented after 10 seconds'
+    description: 'Prompt for analysis and evaluation of responses'
   },
-  fiveMinuteQuestion: {
+  personaId: {
     type: String,
-    required: false,
-    description: 'Question to be presented at 5 minutes'
+    default: '',
+    description: 'The ID of the persona associated with this station'
   },
-  timeLimit: {
-    type: Number,
-    required: false,
-    default: 15, // Default 15 minutes
-  },
-  difficulty: {
-    type: String,
-    enum: ['beginner', 'intermediate', 'advanced'],
-    default: 'intermediate',
+  isPublic: {
+    type: Boolean,
+    default: true,
+    description: 'Whether the station is available to all users'
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: mongoose.Schema.Types.Mixed, // Allow both ObjectId and string
     required: true,
   },
   createdAt: {

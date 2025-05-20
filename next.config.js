@@ -21,9 +21,8 @@ const nextConfig = {
       },
     ];
   },
-  // Add experimental features for TensorFlow.js
-  experimental: {
-    esmExternals: 'loose', // Required for TensorFlow.js
+    experimental: {
+    esmExternals: 'loose'
   }
 };
 

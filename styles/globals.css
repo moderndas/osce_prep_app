@@ -1,15 +1,369 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles can go here */
+/* Custom styles */
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+  /* HSL variables from reference design */
+  --background: 36 100% 97%;
+  --foreground: 35 25% 25%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 35 25% 25%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 35 25% 25%;
+  
+  --primary: 32 100% 49%;
+  --primary-foreground: 39 100% 97%;
+  
+  --secondary: 30 50% 95%;
+  --secondary-foreground: 35 25% 25%;
+  
+  --muted: 30 10% 92%;
+  --muted-foreground: 35 10% 45%;
+  
+  --accent: 32 100% 94%;
+  --accent-foreground: 35 25% 25%;
+  
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 39 100% 97%;
+  
+  --border: 30 15% 85%;
+  --input: 30 15% 85%;
+  --ring: 32 100% 49%;
+  
+  --radius: 0.5rem;
+  
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+  --sidebar-primary: 240 5.9% 10%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 4.8% 95.9%;
+  --sidebar-accent-foreground: 240 5.9% 10%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
+  
+  /* Legacy variables for compatibility - can be removed later */
+  --warm-50: 39 100% 97%;
+  --warm-100: 30 50% 95%;
+  --warm-500: 32 100% 49%;
+  --warm-600: 26 100% 45%;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-size: 16px;
+  line-height: 1.75;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hero section gradient */
+.hero-section {
+  background-image: linear-gradient(to bottom, #FFF5EB, hsl(var(--background)));
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Typography styles */
+@layer base {
+  /* Base typography */
+  html {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl font-bold tracking-tight mb-6;
+    line-height: 1.2;
+    color: hsl(var(--foreground));
+  }
+  
+  h2 {
+    @apply text-3xl font-bold tracking-tight mb-4;
+    line-height: 1.3;
+    color: hsl(var(--foreground));
+  }
+  
+  h3 {
+    @apply text-xl font-semibold mb-3;
+    line-height: 1.4;
+    color: hsl(var(--foreground));
+  }
+  
+  p {
+    @apply text-base mb-4;
+    line-height: 1.75;
+    color: hsl(var(--foreground));
+  }
+  
+  .text-muted {
+    color: hsl(var(--muted-foreground));
+    font-weight: 400;
+  }
+
+  /* Section descriptions */
+  .section-description {
+    color: hsl(var(--muted-foreground));
+    font-weight: 400;
+    @apply text-lg mb-10 text-center max-w-2xl mx-auto;
+  }
+
+  /* Spacing for text content */
+  .prose {
+    @apply max-w-none;
+  }
+
+  .prose h1 {
+    @apply mb-6;
+  }
+
+  .prose h2 {
+    @apply mt-10 mb-4;
+  }
+
+  .prose h3 {
+    @apply mt-8 mb-3;
+  }
+
+  .prose p {
+    @apply mb-4;
+  }
+
+  .prose ul, .prose ol {
+    @apply mb-6 pl-6;
+  }
+
+  .prose li {
+    @apply mb-2;
+  }
+
+  /* Card spacing */
+  .card {
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  
+  .card-title {
+    @apply mb-2;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+
+  /* Section spacing */
+  section {
+    @apply py-12 md:py-16;
+  }
+
+  .section-title {
+    @apply text-3xl font-bold mb-6 text-center;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Button base */
+  .btn, .button {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50;
+    height: 2.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    min-width: 2.5rem;
+    border-radius: var(--radius);
+  }
+  
+  .btn:focus-visible, .button:focus-visible {
+    outline: none;
+  }
+  
+  /* Button variants */
+  .btn-default, .btn-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  
+  .btn-default:hover, .btn-primary:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+  
+  .btn-outline, .btn-secondary {
+    border: 1px solid hsl(var(--border));
+    background-color: transparent;
+    color: hsl(var(--foreground));
+  }
+  
+  .btn-outline:hover, .btn-secondary:hover {
+    background-color: hsl(var(--muted));
+  }
+  
+  .btn-ghost {
+    background-color: transparent;
+    color: hsl(var(--foreground));
+  }
+  
+  .btn-ghost:hover {
+    background-color: hsl(var(--muted));
+  }
+  
+  /* Button sizes */
+  .btn-sm {
+    height: 2rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .btn-lg {
+    height: 3rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+@layer utilities {
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+  
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .text-primary {
+    color: hsl(var(--primary));
+  }
+  
+  .text-secondary {
+    color: hsl(var(--secondary));
+  }
+  
+  .text-accent {
+    color: hsl(var(--accent));
+  }
+
+  .bg-foreground {
+    background-color: hsl(var(--foreground));
+  }
+  
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+  
+  .bg-muted {
+    background-color: hsl(var(--muted));
+  }
+  
+  .bg-primary {
+    background-color: hsl(var(--primary));
+  }
+  
+  .bg-secondary {
+    background-color: hsl(var(--secondary));
+  }
+  
+  .bg-accent {
+    background-color: hsl(var(--accent));
+  }
+  
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+}
+
+/* Aspect ratio utilities */
+.aspect-w-16 {
+  position: relative;
+  padding-bottom: calc(var(--tw-aspect-h) / var(--tw-aspect-w) * 100%);
+  --tw-aspect-w: 16;
+}
+
+.aspect-h-9 {
+  --tw-aspect-h: 9;
+}
+
+.aspect-w-16 > * {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+/* DaisyUI button overrides */
+.btn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+.btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+/* This targets any DaisyUI btn classes */
+[class*="btn-"] {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+/* Additional overrides for all button elements */
+button, .btn, a[role="button"], input[type="button"], input[type="submit"] {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+/* Target focus and active states universally */
+*:focus, *:focus-visible, *:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove TailwindCSS ring utilities */
+*:not([class*="ring-0"]).ring, 
+*:not([class*="ring-0"])[class*="ring-"],
+*:not([class*="ring-0"])[class*="focus:ring"],
+*:not([class*="ring-0"])[class*="focus-visible:ring"] {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Form field styles with more visible borders */
+.input-bordered,
+.textarea-bordered,
+.select-bordered {
+  border: 1px solid hsl(var(--foreground) / 0.3) !important;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: hsl(var(--primary)) !important;
+  outline: none;
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2) !important;
+}
+
+/* Fix for checkbox borders */
+.checkbox {
+  border: 1px solid hsl(var(--foreground) / 0.4) !important;
 } 

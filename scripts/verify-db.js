@@ -1,25 +1,26 @@
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 
-async function verifyConnection() {
+async function verifyDB() {
   try {
     console.log('MongoDB URI:', process.env.MONGODB_URI);
+    
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected successfully to MongoDB');
+    console.log('✅ Connected to MongoDB!');
     
-    // List all collections
+    // Get list of collections
     const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
+    console.log('\nCollections:', collections.map(c => c.name));
     
-    // Count documents in stations collection
-    const Station = mongoose.model('Station', new mongoose.Schema({}));
-    const count = await Station.countDocuments();
-    console.log('Number of stations:', count);
+    // Get database name
+    const dbName = mongoose.connection.db.databaseName;
+    console.log('Database name:', dbName);
     
     await mongoose.disconnect();
+    console.log('Disconnected from MongoDB');
   } catch (error) {
-    console.error('Verification error:', error);
+    console.error('Error:', error);
   }
 }
 
-verifyConnection(); 
+verifyDB(); 

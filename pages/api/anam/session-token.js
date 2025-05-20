@@ -8,6 +8,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Extract personaId from request or use fallback
+    const { personaConfig } = req.body;
+    
+    if (!personaConfig || !personaConfig.id) {
+      return res.status(400).json({ 
+        error: 'Missing personaId',
+        message: 'personaConfig.id is required in the request body'
+      });
+    }
+    
+    const personaId = personaConfig.id;
+    console.log(`[API-token] Using personaId: ${personaId}`);
+    
     // First get the session token
     const tokenResponse = await fetch('https://api.anam.ai/v1/auth/session-token', {
       method: 'POST',
@@ -17,7 +30,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         personaConfig: {
-          personaId: "717207e2-aa3a-409e-9fe6-3b240cfc26d0"
+          personaId: personaId
         }
       })
     });
@@ -34,7 +47,7 @@ export default async function handler(req, res) {
     const sessionToken = tokenData.sessionToken;
 
     // Then get the persona details
-    const personaResponse = await fetch(`https://api.anam.ai/v1/personas/717207e2-aa3a-409e-9fe6-3b240cfc26d0`, {
+    const personaResponse = await fetch(`https://api.anam.ai/v1/personas/${personaId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${process.env.ANAM_API_KEY}`,

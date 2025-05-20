@@ -1,35 +1,53 @@
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' }); // Explicitly specify the path
+require('dotenv').config();
 
-async function verifyConnection() {
-    try {
-        console.log('Checking environment setup...');
-        
-        // Get the connection string
-        const uri = process.env.MONGODB_URI;
-        if (!uri) {
-            throw new Error('MONGODB_URI is not defined in .env.local');
-        }
-        
-        console.log('MONGODB_URI found:', uri.substring(0, 20) + '...');
-        
-        // Try to connect
-        console.log('Attempting MongoDB connection...');
-        await mongoose.connect(uri);
-        console.log('✅ MongoDB connection successful!');
-        
-        await mongoose.disconnect();
-        console.log('✅ Disconnected successfully');
-    } catch (error) {
-        console.error('❌ Error:', error.message);
-        
-        if (!process.env.MONGODB_URI) {
-            console.log('\nPlease check that:');
-            console.log('1. .env.local file exists');
-            console.log('2. MONGODB_URI is defined in .env.local');
-            console.log('3. No syntax errors in .env.local');
-        }
+async function verifyMongoDBConnection() {
+  try {
+    // Check if MONGODB_URI is defined in environment variables
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      throw new Error('MONGODB_URI is not defined in .env.local');
     }
+    
+    console.log('MONGODB_URI found:', uri.substring(0, 20) + '...');
+    
+    // Verify it's in the correct format (doesn't have database name issues)
+    const url = new URL(uri);
+    const dbName = url.pathname.split('/')[1];
+    console.log('Database name:', dbName);
+    
+    // Connect to MongoDB
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(uri);
+    console.log('Connected successfully!');
+    
+    await mongoose.disconnect();
+    console.log('Disconnected successfully!');
+    
+    return {
+      success: true,
+      message: 'MongoDB connection verified successfully!'
+    };
+  } catch (error) {
+    console.error('Verification failed:', error);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
 }
 
-verifyConnection(); 
+// Run the verification when this script is executed directly
+if (require.main === module) {
+  if (!process.env.MONGODB_URI) {
+    console.error('1. Missing MONGODB_URI environment variable');
+  } else {
+    console.log('2. MONGODB_URI is defined in .env.local');
+    verifyMongoDBConnection().then(result => {
+      console.log(result);
+      process.exit(result.success ? 0 : 1);
+    });
+  }
+}
+
+module.exports = { verifyMongoDBConnection }; 

@@ -7,39 +7,51 @@ export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session) {
-    return res.status(401).json({ message: 'You must be signed in.' });
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized' 
+    });
   }
 
   // Connect to database
   await dbConnect();
 
+  // Handle POST request to create a new station
   if (req.method === 'POST') {
     try {
-      // Check station limit
-      const stationCount = await Station.countDocuments({ createdBy: session.user.id });
-      if (stationCount >= 5) {
-        return res.status(400).json({
+      // Only allow admins to create stations
+      if (session.user.role !== 'admin') {
+        return res.status(403).json({
           success: false,
-          message: 'You have reached the limit of 5 stations'
+          message: 'Only administrators can create stations'
         });
       }
 
-      const { stationName, clinicalBackground, keyQuestions, expectedAnswers, initialQuestion, fiveMinuteQuestion } = req.body;
+      const { stationName, clinicalBackground, systemPrompt, analysisPrompt, personaId, isPublic = true } = req.body;
+
+      // Validate required fields
+      if (!stationName || !clinicalBackground) {
+        return res.status(400).json({
+          success: false,
+          message: 'Station name and clinical background are required'
+        });
+      }
 
       // Create new station
       const station = await Station.create({
         stationName,
         clinicalBackground,
-        keyQuestions,
-        expectedAnswers,
-        initialQuestion,
-        fiveMinuteQuestion,
+        systemPrompt: systemPrompt || '',
+        analysisPrompt: analysisPrompt || '',
+        personaId: personaId || '',
+        isPublic: isPublic === true || isPublic === 'true',
         createdBy: session.user.id
       });
 
       return res.status(201).json({
         success: true,
-        data: station
+        data: station,
+        message: 'Station created successfully'
       });
     } catch (error) {
       console.error('Station creation error:', error);
@@ -50,11 +62,23 @@ export default async function handler(req, res) {
     }
   }
 
-  // Handle GET request to fetch user's stations
+  // Handle GET request to fetch stations
   if (req.method === 'GET') {
     try {
-      const stations = await Station.find({ createdBy: session.user.id })
-        .sort({ createdAt: -1 });
+      let query = {};
+      
+      // If not admin, only fetch public stations or ones created by the user
+      if (session.user.role !== 'admin') {
+        query = {
+          $or: [
+            { isPublic: true },
+            { createdBy: session.user.id }
+          ]
+        };
+      }
+      
+      // Fetch stations based on query
+      const stations = await Station.find(query).sort({ createdAt: -1 });
 
       return res.status(200).json({
         success: true,
@@ -72,14 +96,20 @@ export default async function handler(req, res) {
   // Add DELETE method
   if (req.method === 'DELETE') {
     try {
-      const { stationId } = req.query;
-      const station = await Station.findOneAndDelete({
-        _id: stationId,
-        createdBy: session.user.id
-      });
+      const { id } = req.query;
+      
+      // Allow admins to delete any station, but regular users can only delete their own
+      const query = session.user.role === 'admin'
+        ? { _id: id }
+        : { _id: id, createdBy: session.user.id };
+        
+      const station = await Station.findOneAndDelete(query);
 
       if (!station) {
-        return res.status(404).json({ message: 'Station not found' });
+        return res.status(404).json({ 
+          success: false,
+          message: 'Station not found or you don\'t have permission to delete it' 
+        });
       }
 
       return res.status(200).json({ success: true });
@@ -91,5 +121,8 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(405).json({ message: 'Method not allowed' });
+  return res.status(405).json({ 
+    success: false, 
+    message: 'Method not allowed' 
+  });
 } 

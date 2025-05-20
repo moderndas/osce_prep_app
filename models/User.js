@@ -15,6 +15,25 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  stripeCustomerId: {
+    type: String,
+    default: null
+  },
+  subscriptionStatus: {
+    type: String,
+    enum: ['none', 'active', 'canceled', 'past_due', 'trialing'],
+    default: 'none'
+  },
+  subscriptionPlan: {
+    type: String,
+    enum: ['none', 'pro', 'promax', 'monthly', 'annual', 'quarterly'],
+    default: 'none'
+  },
   createdAt: {
     type: Date,
     default: Date.now,

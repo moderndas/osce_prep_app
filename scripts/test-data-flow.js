@@ -1,10 +1,14 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 async function testDataFlow() {
     try {
-        // Connect to MongoDB
+        // Use environment variable or fallback to a correctly formatted URI
+        const uri = process.env.MONGODB_URI || 
+                   '[MONGODB_URI_PLACEHOLDER]';
+        
         console.log('Connecting to MongoDB...');
-        await mongoose.connect('[MONGODB_URI_PLACEHOLDER]');
+        await mongoose.connect(uri);
         console.log('Connected successfully!');
 
         // Create a simple test schema
@@ -28,7 +32,7 @@ async function testDataFlow() {
         console.log('3. A new document with testName and createdAt');
 
         await mongoose.disconnect();
-        console.log('\nDisconnected from MongoDB');
+        console.log('Disconnected from MongoDB');
 
     } catch (error) {
         console.error('Error:', error);

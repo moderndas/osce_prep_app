@@ -1,3 +1,7 @@
+// This file defines the default analysis prompt for OSCE session grading.
+// It is imported by /api/anamanalysis.js and used whenever a custom prompt is not provided.
+// You can edit this prompt to change the default grading criteria for pharmacist OSCE sessions.
+
 export const analysisPrompt = `
   You are an OSCE for pharmacists exam grader. For this session, check:
   1) Did the user ask about allergies?

@@ -26,6 +26,13 @@ export const authOptions = {
             throw new Error('No user found with this email');
           }
 
+          console.log("FOUND USER IN DATABASE:", {
+            id: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            roleType: typeof user.role
+          });
+
           const isValid = await compare(credentials.password, user.password);
           if (!isValid) {
             throw new Error('Invalid password');
@@ -34,7 +41,8 @@ export const authOptions = {
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.name
+            name: user.name,
+            role: user.role || 'user'
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -54,12 +62,16 @@ export const authOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
+        console.log("JWT callback - adding role to token:", user.role);
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id;
+        session.user.role = token.role || 'user';
+        console.log("Session callback - user role:", session.user.role);
       }
       return session;
     }

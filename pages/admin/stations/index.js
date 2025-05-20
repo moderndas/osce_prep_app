@@ -1,0 +1,210 @@
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+import AdminDashboardLayout from '../../../components/AdminDashboardLayout';
+import { withAdminAuth } from '../../../lib/auth';
+import Link from 'next/link';
+
+function AdminStations() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [stations, setStations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [stationToDelete, setStationToDelete] = useState(null);
+
+  const fetchStations = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/stations');
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch stations');
+      
+      setStations(data.data || []);
+      setError('');
+    } catch (err) {
+      console.error('Error loading stations:', err);
+      setError('Failed to load stations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStations();
+  }, []);
+
+  const openDeleteModal = (stationId) => {
+    setStationToDelete(stationId);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setStationToDelete(null);
+  };
+
+  const handleDelete = async () => {
+    if (!stationToDelete) return;
+    
+    setDeleteLoading(stationToDelete);
+    try {
+      const response = await fetch(`/api/stations/${stationToDelete}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete station');
+      }
+
+      // Close the modal and reset state
+      closeDeleteModal();
+      
+      // Refresh the stations list
+      fetchStations();
+    } catch (err) {
+      setError(err.message);
+      closeDeleteModal();
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const handleEdit = (stationId) => {
+    router.push(`/admin/stations/${stationId}/edit`);
+  };
+
+  return (
+    <AdminDashboardLayout>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-bold text-foreground mb-4">Confirm Deletion</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete this station? Users will no longer be able to access it. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                className="btn btn-outline" 
+                onClick={closeDeleteModal}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn bg-red-500 hover:bg-red-600 text-white border-none"
+                onClick={handleDelete}
+                disabled={deleteLoading === stationToDelete}
+              >
+                {deleteLoading === stationToDelete ? (
+                  <span className="loading loading-spinner loading-xs mr-2"></span>
+                ) : null}
+                Delete Station
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-foreground">All Stations</h2>
+        <Link href="/admin/stations/new">
+          <button className="btn btn-primary">Create New Station</button>
+        </Link>
+      </div>
+
+      {error && (
+        <div className="alert alert-error mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center my-12">
+          <span className="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+      ) : stations.length === 0 ? (
+        <div className="bg-white border border-border rounded-lg shadow-sm">
+          <div className="p-6 text-center">
+            <h3 className="text-xl font-semibold text-foreground">No Stations Created</h3>
+            <p className="mt-2 text-muted-foreground">Create your first OSCE station for users to practice with.</p>
+            <div className="mt-6">
+              <Link href="/admin/stations/new">
+                <button className="btn btn-primary">Create New Station</button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto bg-white border border-border rounded-lg shadow-sm">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-sm font-medium text-foreground">Station Name</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-foreground">Created</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-foreground">Public</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {stations.map((station) => (
+                <tr key={station._id} className="hover:bg-muted/20">
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-foreground">{station.stationName}</div>
+                    <div className="text-sm text-muted-foreground truncate max-w-xs">{station.clinicalBackground.substring(0, 50)}...</div>
+                  </td>
+                  <td className="px-6 py-4 text-muted-foreground">{new Date(station.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4">
+                    {station.isPublic ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        No
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleEdit(station._id)} 
+                        className="btn btn-sm btn-outline"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => openDeleteModal(station._id)} 
+                        className="btn btn-sm btn-outline"
+                        disabled={deleteLoading === station._id}
+                      >
+                        {deleteLoading === station._id ? (
+                          <span className="loading loading-spinner loading-xs"></span>
+                        ) : 'Delete'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </AdminDashboardLayout>
+  );
+}
+
+// Wrap the page with admin auth protection
+export const getServerSideProps = withAdminAuth(async (context) => {
+  return {
+    props: {}
+  };
+});
+
+export default AdminStations; 

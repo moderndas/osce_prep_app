@@ -1,30 +1,33 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+require('dotenv').config();
 
-// Load environment variables
-dotenv.config({ path: '.env.local' });
-
-async function testConnection() {
+async function testDB() {
   try {
+    // Get MongoDB URI from environment
     const uri = process.env.MONGODB_URI;
     
     if (!uri) {
       throw new Error('MONGODB_URI is not defined in .env.local');
     }
-
-    console.log('Attempting to connect to MongoDB...');
+    
+    console.log('Connecting to MongoDB...');
     await mongoose.connect(uri);
-    console.log('Successfully connected to MongoDB!');
+    console.log('Connected to MongoDB!');
     
-    // Test creating a collection
+    // Get the database name from the connection
+    const dbName = mongoose.connection.db.databaseName;
+    console.log('Connected to database:', dbName);
+    
+    // List all collections
     const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
+    console.log('Collections:', collections.map(c => c.name).join(', '));
     
+    // Disconnect
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('Error:', error);
   }
 }
 
-testConnection(); 
+testDB(); 

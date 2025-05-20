@@ -1,8 +1,11 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 async function testConnection() {
     try {
-        const uri = '[MONGODB_URI_PLACEHOLDER]';
+        // Use environment variable or fallback to a correctly formatted URI
+        const uri = process.env.MONGODB_URI || 
+                   '[MONGODB_URI_PLACEHOLDER]';
         
         console.log('Attempting to connect...');
         await mongoose.connect(uri);

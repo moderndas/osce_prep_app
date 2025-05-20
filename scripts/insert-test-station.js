@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 async function insertTestStation() {
     try {
+        // Use environment variable or fallback to a correctly formatted URI
+        const uri = process.env.MONGODB_URI || 
+                   '[MONGODB_URI_PLACEHOLDER]';
+        
         // Connect to MongoDB
         console.log('Connecting to MongoDB...');
-        await mongoose.connect('[MONGODB_URI_PLACEHOLDER]');
+        await mongoose.connect(uri);
         console.log('Connected successfully!');
 
         // Define Station Schema
