@@ -23,7 +23,10 @@ const nextConfig = {
   },
     experimental: {
     esmExternals: 'loose'
-  }
+  },
+  // Next.js 13+ only: ensure the SDK gets run through Babel/Webpack
+  // so directory imports get flattened at build time
+  transpilePackages: ['@anam-ai/js-sdk']
 };
-
+// Force Next to transpile the Anam SDK so that its directory imports get flattened
 module.exports = nextConfig;
