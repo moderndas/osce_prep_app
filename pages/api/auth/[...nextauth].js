@@ -4,6 +4,11 @@ import { compare } from 'bcryptjs';
 import dbConnect from '../../../lib/db';
 import User from '../../../models/User';
 
+// Simple in-memory cache for users
+// Cache structure: { email: { user: {...}, timestamp: Date.now() } }
+const userCache = {};
+const CACHE_TTL = 60 * 1000; // 60 seconds cache TTL
+
 /**
  * NextAuth.js configuration
  * @see https://next-auth.js.org/configuration/options
@@ -19,19 +24,36 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          await dbConnect();
-          const user = await User.findOne({ email: credentials.email });
+          let user;
+          
+          // Check cache first
+          const cachedUser = userCache[credentials.email];
+          const now = Date.now();
+          
+          if (cachedUser && (now - cachedUser.timestamp < CACHE_TTL)) {
+            // Use cached user if within TTL
+            user = cachedUser.user;
+          } else {
+            // Otherwise fetch from DB
+            await dbConnect();
+            // Only select the fields we need to minimize data transfer
+            user = await User.findOne(
+              { email: credentials.email },
+              'email password name role'
+            ).lean();
+            
+            // Cache the user
+            if (user) {
+              userCache[credentials.email] = {
+                user,
+                timestamp: now
+              };
+            }
+          }
           
           if (!user) {
             throw new Error('No user found with this email');
           }
-
-          console.log("FOUND USER IN DATABASE:", {
-            id: user._id.toString(),
-            email: user.email,
-            role: user.role,
-            roleType: typeof user.role
-          });
 
           const isValid = await compare(credentials.password, user.password);
           if (!isValid) {
@@ -53,6 +75,10 @@ export const authOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: '/auth/signin', // Custom sign-in page (create this page in pages/auth/signin.js)
@@ -63,7 +89,6 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        console.log("JWT callback - adding role to token:", user.role);
       }
       return token;
     },
@@ -71,7 +96,6 @@ export const authOptions = {
       if (token) {
         session.user.id = token.id;
         session.user.role = token.role || 'user';
-        console.log("Session callback - user role:", session.user.role);
       }
       return session;
     }
