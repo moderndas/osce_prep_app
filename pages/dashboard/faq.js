@@ -67,7 +67,7 @@ export default function DashboardFAQPage() {
               <input 
                 type="radio" 
                 name="faq-accordion"
-                checked={activeTab === index}
+                defaultChecked={index === 0}
                 onChange={() => setActiveTab(index)}
               />
               <div className="collapse-title text-lg font-medium">
