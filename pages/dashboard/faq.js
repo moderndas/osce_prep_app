@@ -60,21 +60,28 @@ export default function DashboardFAQPage() {
         <p className="text-muted-foreground mt-2">Find answers to common questions about OSCE Prep.</p>
       </div>
       
-      <div className="space-y-4">
-        {faqs.map((faq, index) => (
-          <div key={index} className="collapse collapse-arrow bg-white border border-border rounded-lg shadow-sm">
-            <input type="checkbox" defaultChecked={index === 0} /> 
-            <div className="collapse-title text-lg font-medium text-foreground">
-              {faq.question}
+      <div className="max-w-4xl mx-auto">
+        <div className="join join-vertical w-full">
+          {faqs.map((faq, index) => (
+            <div key={index} className="collapse collapse-arrow join-item border border-border bg-card">
+              <input 
+                type="radio" 
+                name="faq-accordion"
+                checked={activeTab === index}
+                onChange={() => setActiveTab(index)}
+              />
+              <div className="collapse-title text-lg font-medium">
+                {faq.question}
+              </div>
+              <div className="collapse-content">
+                <p className="text-muted-foreground">{faq.answer}</p>
+              </div>
             </div>
-            <div className="collapse-content">
-              <p className="text-muted-foreground">{faq.answer}</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       
-      <div className="mt-8 bg-white border border-border rounded-lg shadow-sm p-6">
+      <div className="mt-8 bg-card border border-border rounded-lg shadow-sm p-6 max-w-4xl mx-auto">
         <h3 className="text-lg font-semibold text-foreground">Still have questions?</h3>
         <p className="mt-2 text-muted-foreground">If you couldn't find the answer to your question, feel free to contact us.</p>
         <div className="mt-4">
