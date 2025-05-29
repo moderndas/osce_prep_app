@@ -1,4 +1,4 @@
-import { connectDB } from '../../../lib/mongodb';
+import dbConnect from '../../../lib/db';
 import Station from '../../../models/Station';
 import { analyzeStationPerformance } from '../../../utils/openai';
 
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
+    await dbConnect();
 
     const { stationId, ephemeralData } = req.body;
 

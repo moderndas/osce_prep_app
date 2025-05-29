@@ -1,4 +1,4 @@
-import { connectDB } from '../../../lib/mongodb';
+import dbConnect from '../../../lib/db';
 import Analysis from '../../../models/Analysis';
 import axios from 'axios';
 
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
+    await dbConnect();
 
     const analysis = await Analysis.create({
       stationId: req.body.stationId,

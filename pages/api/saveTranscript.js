@@ -1,4 +1,4 @@
-import { connectDB } from '../../lib/mongodb';
+import dbConnect from '../../lib/db';
 import Analysis from '../../models/Analysis';
 
 export default async function handler(req, res) {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
+    await dbConnect();
 
     const { stationId, videoId, transcript } = req.body;
 
