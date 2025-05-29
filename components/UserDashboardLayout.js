@@ -95,7 +95,7 @@ export default function UserDashboardLayout({ children }) {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-secondary/50 border-b border-border flex justify-between items-center p-6">
           <div>
