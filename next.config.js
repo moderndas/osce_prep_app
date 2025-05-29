@@ -1,15 +1,58 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-    };
+  webpack: (config, { isServer }) => {
+    // Only apply these fallbacks for client-side builds
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        dns: false,
+        child_process: false,
+        tls: false,
+        mongodb: false,
+        mongoose: false,
+      };
+    }
     return config;
   },
   async headers() {
     return [
+      {
+        // Apply security headers to all routes
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin'
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), geolocation=(self)'
+          }
+        ],
+      },
       {
         source: '/models/:path*',
         headers: [
@@ -20,9 +63,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-    experimental: {
-    esmExternals: 'loose'
   },
   // Next.js 13+ only: ensure the SDK gets run through Babel/Webpack
   // so directory imports get flattened at build time

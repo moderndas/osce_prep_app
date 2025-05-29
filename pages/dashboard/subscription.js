@@ -1,4 +1,4 @@
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -9,26 +9,26 @@ import SubscriptionPlans from '../../components/SubscriptionPlans';
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 export default function SubscriptionPage() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [userSubscription, setUserSubscription] = useState({
     status: 'none',
     plan: 'none'
   });
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ type: '', text: '' });
 
   // Fetch user subscription status on load
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (isLoaded && isSignedIn) {
       fetchSubscriptionStatus();
     }
-  }, [status]);
+  }, [isLoaded, isSignedIn]);
 
   // Check for success/canceled URL params
   useEffect(() => {
     if (router.query.success) {
-      setMessage('Payment successful! Your subscription has been activated.');
+      setMessage({ type: 'success', text: 'Payment successful! Your subscription has been activated.' });
       // Immediately fetch subscription status after successful payment
       fetchSubscriptionStatus();
       
@@ -39,7 +39,7 @@ export default function SubscriptionPage() {
       
       return () => clearTimeout(timer);
     } else if (router.query.canceled) {
-      setMessage('Payment canceled. Your subscription has not changed.');
+      setMessage({ type: 'info', text: 'Payment canceled. Your subscription has not changed.' });
     }
 
     // Clear query params after displaying message
@@ -66,9 +66,11 @@ export default function SubscriptionPage() {
     }
   };
 
-  const handleSubscribe = async (planId) => {
+  // Handle subscription
+  const handleSubscribe = async (priceId) => {
     setLoading(true);
-    setMessage('');
+    setMessage({ type: '', text: '' });
+
     try {
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
@@ -76,59 +78,69 @@ export default function SubscriptionPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          plan: planId,
+          priceId,
+          userEmail: user.primaryEmailAddress?.emailAddress
         }),
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to create checkout session');
+        throw new Error(data.message || 'Failed to create checkout session');
       }
       
       // Redirect to Stripe Checkout
-      router.push(data.url);
+      window.location.href = data.url;
     } catch (error) {
-      console.error('Error creating checkout session:', error);
-      setMessage(`Checkout error: ${error.message}. Please try again or contact support.`);
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'Failed to start subscription process'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your billing period.')) {
-      return;
-    }
-    
     setLoading(true);
+    setMessage({ type: '', text: '' });
+    
     try {
       const response = await fetch('/api/stripe/cancel-subscription', {
         method: 'POST',
       });
       
       if (response.ok) {
-        setMessage('Your subscription has been canceled. You will have access until the end of your billing period.');
+        setMessage({ 
+          type: 'success', 
+          text: 'Your subscription has been canceled. You will have access until the end of your billing period.' 
+        });
         fetchSubscriptionStatus();
       } else {
         const error = await response.json();
-        setMessage(`Failed to cancel subscription: ${error.message}`);
+        setMessage({ 
+          type: 'error', 
+          text: `Failed to cancel subscription: ${error.message}` 
+        });
       }
     } catch (error) {
       console.error('Error canceling subscription:', error);
-      setMessage('Failed to cancel subscription. Please try again later.');
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to cancel subscription. Please try again later.' 
+      });
     } finally {
       setLoading(false);
     }
   };
 
   // Protect the route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -144,12 +156,12 @@ export default function SubscriptionPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-foreground">Choose the right plan for your OSCE preparation needs.</h2>
         
-        {message && (
-          <div className="alert alert-info mt-4">
+        {message.text && (
+          <div className={`alert ${message.type === 'success' ? 'alert-success' : message.type === 'info' ? 'alert-info' : 'alert-error'} mt-4`}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <span>{message}</span>
+            <span>{message.text}</span>
           </div>
         )}
         
@@ -171,7 +183,11 @@ export default function SubscriptionPage() {
               {!userSubscription.cancelAtPeriodEnd && (
                 <button 
                   className="btn btn-outline" 
-                  onClick={handleCancelSubscription}
+                  onClick={() => {
+                    if (confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your billing period.')) {
+                      handleCancelSubscription();
+                    }
+                  }}
                   disabled={loading}
                 >
                   {loading ? 'Processing...' : 'Cancel Plan'}

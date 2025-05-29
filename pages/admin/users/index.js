@@ -1,11 +1,9 @@
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import AdminDashboardLayout from '../../../components/AdminDashboardLayout';
-import { withAdminAuth } from '../../../lib/auth';
+import { withAdminAuth } from '../../../lib/auth-clerk';
 
 function AdminUsers() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,43 +12,19 @@ function AdminUsers() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        // This API endpoint needs to be implemented
-        const response = await fetch('/api/admin/users');
+        const response = await fetch('/api/admin/users', {
+          credentials: 'include'
+        });
         const data = await response.json();
         
         if (!response.ok) throw new Error(data.message || 'Failed to fetch users');
         
-        setUsers(data.users || []); 
+        setUsers(data.data?.users || []); 
         setLoading(false);
       } catch (err) {
         console.error('Error loading users:', err);
-        setError('Failed to load users. The API endpoint may not be implemented yet.');
+        setError('Failed to load users');
         setLoading(false);
-        
-        // Temporary mock data for display purposes
-        setUsers([
-          { 
-            _id: '1', 
-            name: 'Apple Patient', 
-            email: 'applepatient@gmail.com',
-            role: 'admin',
-            createdAt: new Date().toISOString()
-          },
-          { 
-            _id: '2', 
-            name: 'Test User', 
-            email: 'user@example.com',
-            role: 'user',
-            createdAt: new Date().toISOString()
-          },
-          { 
-            _id: '3', 
-            name: 'Jane Smith', 
-            email: 'jane@example.com',
-            role: 'user',
-            createdAt: new Date().toISOString()
-          }
-        ]);
       }
     }
 
@@ -59,12 +33,12 @@ function AdminUsers() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      // This API endpoint needs to be implemented
       const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ role: newRole }),
       });
 
@@ -72,16 +46,14 @@ function AdminUsers() {
         throw new Error('Failed to update user role');
       }
 
+      const data = await response.json();
+      
       // Update user in state
       setUsers(users.map(user => 
         user._id === userId ? { ...user, role: newRole } : user
       ));
     } catch (err) {
       setError(err.message);
-      // For demo, update the UI anyway
-      setUsers(users.map(user => 
-        user._id === userId ? { ...user, role: newRole } : user
-      ));
     }
   };
 

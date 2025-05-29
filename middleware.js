@@ -1,51 +1,43 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-export default withAuth({
-  callbacks: {
-    authorized: ({ token, req }) => {
-      // Always require authentication
-      if (!token) return false;
-      
-      // For admin routes, check if user has admin role
-      const isAdminRoute = req.nextUrl.pathname.startsWith('/admin');
-      if (isAdminRoute) {
-        return token.role === 'admin';
-      }
-      
-      // Block access to station creation for non-admin users
-      const isStationCreationRoute = req.nextUrl.pathname.includes('/stations/new') || 
-                                    req.nextUrl.pathname.includes('/stations/create');
-      if (isStationCreationRoute && token.role !== 'admin') {
-        return false;
-      }
-      
-      // Allow access to regular routes for authenticated users
-      return true;
-    },
-    
-    redirect({ url, baseUrl }) {
-      // If accessing the root page and authenticated, redirect based on role
-      if (url === `${baseUrl}/`) {
-        // Extract token from session - this would need proper implementation
-        return baseUrl + '/dashboard';
-      }
-      return url.startsWith(baseUrl) ? url : baseUrl;
-    },
-  },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
-  },
-});
+// Define protected routes
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/admin(.*)',
+  '/stations(.*)',
+  '/api/stations(.*)',
+  '/api/user(.*)',
+  '/api/admin(.*)',
+  '/api/analysis(.*)',
+  '/api/stripe(.*)',      // Payment/subscription routes
+  '/api/saveTranscript',  // Transcript saving
+  '/api/anam(.*)',        // AI session management
+  '/api/protected(.*)',   // Protected folder
+  '/api/video(.*)',       // Video access
+])
 
-// Protect all routes under /dashboard and /api/protected and /admin
+export default clerkMiddleware((auth, req) => {
+  // Protect routes that require authentication
+  if (isProtectedRoute(req)) {
+    auth.protect({
+      // Configure authorized parties for production security
+      // This prevents CSRF attacks and subdomain cookie leaking
+      authorizedParties: [
+        'http://localhost:3000',             // Local development
+        'https://oscehelp.com',              // Production domain
+        'https://www.oscehelp.com',          // Production domain with www
+        process.env.NEXT_PUBLIC_VERCEL_URL, // Vercel deployment URL
+        process.env.VERCEL_URL,             // Vercel internal URL
+      ].filter(Boolean) // Remove undefined values
+    })
+  }
+})
+
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/api/protected/:path*",
-    "/profile/:path*",
-    "/admin/:path*",
-    "/stations/:path*",  // Add protection for station-related routes
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
   ],
-}; 
+} 

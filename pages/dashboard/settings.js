@@ -1,39 +1,39 @@
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import UserDashboardLayout from '../../components/UserDashboardLayout';
 
 export default function SettingsPage() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   
   const [formData, setFormData] = useState({
     name: '',
-    email: session?.user?.email || ''
+    email: ''
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Update formData when session is loaded
+  // Update formData when user is loaded
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       setFormData(prevData => ({
         ...prevData,
-        name: session.user.name || '',
-        email: session.user.email || ''
+        name: user.fullName || user.firstName || '',
+        email: user.primaryEmailAddress?.emailAddress || ''
       }));
     }
-  }, [session]);
+  }, [user]);
 
   // Protect the route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -60,8 +60,8 @@ export default function SettingsPage() {
       // Reset form data to original values if canceling edit
       setFormData(prevData => ({
         ...prevData,
-        name: session?.user?.name || '',
-        email: session?.user?.email || ''
+        name: user?.fullName || user?.firstName || '',
+        email: user?.primaryEmailAddress?.emailAddress || ''
       }));
     }
   };
@@ -79,6 +79,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure Clerk cookies are sent
         body: JSON.stringify({
           name: formData.name,
           email: formData.email

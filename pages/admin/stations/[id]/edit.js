@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { useUser } from '@clerk/nextjs';
 import AdminDashboardLayout from '../../../../components/AdminDashboardLayout';
-import { withAdminAuth } from '../../../../lib/auth';
 
 function EditStationPage() {
+  const { user, isLoaded, isSignedIn } = useUser();
+  const router = useRouter();
+  const { id } = router.query;
+  
   const [title, setTitle] = useState('');
   const [intro, setIntro] = useState('');
   const [isPublic, setIsPublic] = useState(true);
@@ -13,14 +17,44 @@ function EditStationPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const router = useRouter();
-  const { id } = router.query;
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check admin status
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const checkAdminStatus = async () => {
+        try {
+          const response = await fetch('/api/admin/check', {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+            router.push('/dashboard');
+          }
+        } catch (err) {
+          console.error('Error checking admin status:', err);
+          setIsAdmin(false);
+          router.push('/dashboard');
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      checkAdminStatus();
+    } else if (isLoaded && !isSignedIn) {
+      router.push('/auth/signin');
+    }
+  }, [isLoaded, isSignedIn, user, router]);
 
   // Fetch station data
   useEffect(() => {
-    async function fetchStation() {
-      if (!id) return;
+    if (!id || !isAdmin || authLoading) return;
 
+    async function fetchStation() {
       try {
         setLoading(true);
         const response = await fetch(`/api/stations/${id}`);
@@ -46,7 +80,24 @@ function EditStationPage() {
     }
 
     fetchStation();
-  }, [id]);
+  }, [id, isAdmin, authLoading]);
+
+  // Show loading while checking authentication
+  if (!isLoaded || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <div className="flex flex-col items-center gap-4">
+          <span className="loading loading-spinner loading-lg"></span>
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not admin (will redirect)
+  if (!isAdmin) {
+    return null;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -200,12 +251,5 @@ function EditStationPage() {
     </AdminDashboardLayout>
   );
 }
-
-// Protect this page with admin authentication
-export const getServerSideProps = withAdminAuth(async (context) => {
-  return {
-    props: {}
-  };
-});
 
 export default EditStationPage; 

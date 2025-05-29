@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import { useUser } from '@clerk/nextjs'
 import AdminDashboardLayout from '../../../components/AdminDashboardLayout'
-import { withAdminAuth } from '../../../lib/auth'
 
 function NewStationPage() {
+  const { user, isLoaded, isSignedIn } = useUser()
+  const router = useRouter()
+  
   const [title, setTitle] = useState('')
   const [intro, setIntro] = useState('')
   const [isPublic, setIsPublic] = useState(true)
@@ -11,7 +14,55 @@ function NewStationPage() {
   const [analysisPrompt, setAnalysisPrompt] = useState('')
   const [personaId, setPersonaId] = useState('')
   const [error, setError] = useState(null)
-  const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // Check admin status
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const checkAdminStatus = async () => {
+        try {
+          const response = await fetch('/api/admin/check', {
+            credentials: 'include'
+          })
+          
+          if (response.ok) {
+            setIsAdmin(true)
+          } else {
+            setIsAdmin(false)
+            router.push('/dashboard')
+          }
+        } catch (err) {
+          console.error('Error checking admin status:', err)
+          setIsAdmin(false)
+          router.push('/dashboard')
+        } finally {
+          setAuthLoading(false)
+        }
+      }
+
+      checkAdminStatus()
+    } else if (isLoaded && !isSignedIn) {
+      router.push('/auth/signin')
+    }
+  }, [isLoaded, isSignedIn, user, router])
+
+  // Show loading while checking authentication
+  if (!isLoaded || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <div className="flex flex-col items-center gap-4">
+          <span className="loading loading-spinner loading-lg"></span>
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render anything if not admin (will redirect)
+  if (!isAdmin) {
+    return null
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -142,12 +193,5 @@ function NewStationPage() {
     </AdminDashboardLayout>
   )
 }
-
-// Protect this page with admin authentication
-export const getServerSideProps = withAdminAuth(async (context) => {
-  return {
-    props: {}
-  };
-});
 
 export default NewStationPage; 

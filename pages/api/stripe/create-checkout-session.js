@@ -1,4 +1,4 @@
-import { getToken } from 'next-auth/jwt';
+import { requireAuth } from '../../../lib/auth-clerk';
 import stripe, { createCheckoutSession, SUBSCRIPTION_PRICES } from '../../../lib/stripe';
 import dbConnect from '../../../lib/db';
 import User from '../../../models/User';
@@ -9,12 +9,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Use JWT token for API routes instead of session
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // Use Clerk authentication
+    const auth = await requireAuth(req, res);
+    if (!auth) return; // requireAuth already sends error response
 
     const { plan } = req.body;
     
@@ -37,12 +34,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid plan selected' });
     }
     
-    // Get user from database
-    const user = await User.findOne({ email: token.email });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // User is already available from requireAuth
+    const user = auth.user;
     
     // If user doesn't have a Stripe customer ID, create one
     if (!user.stripeCustomerId) {

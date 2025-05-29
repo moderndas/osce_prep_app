@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
+import { useRouter } from 'next/router';
+import { useUser } from '@clerk/nextjs';
 
 // Hard-coded fallback system prompt if personaDetails arrives late
 const FALLBACK_SYSTEM_PROMPT = `
@@ -32,6 +34,8 @@ Assistant: Can i take 3 pills of Advil back to back?
 `.trim();
 
 export default function PersonaPage() {
+  const router = useRouter();
+  const { user, isLoaded, isSignedIn } = useUser();
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const anamClientRef = useRef(null);
@@ -43,6 +47,23 @@ export default function PersonaPage() {
   const [userTurns, setUserTurns] = useState([]);
   const seenUserMsgIds = useRef(new Set());
   const [analysis, setAnalysis] = useState("");
+
+  // Protect the route
+  if (isLoaded && !isSignedIn) {
+    router.push('/auth/signin');
+    return null;
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-100">
+        <div className="flex flex-col items-center gap-4">
+          <span className="loading loading-spinner loading-lg"></span>
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Custom Brain Reply Handler ───────────────────────────────────────────────
   // async function getCustomBrainReply(history) {

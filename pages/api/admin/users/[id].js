@@ -1,124 +1,158 @@
-import { requireAdmin } from '../../../../lib/auth';
+import { requireAdmin } from '../../../../lib/auth-clerk';
 import dbConnect from '../../../../lib/db';
 import User from '../../../../models/User';
+import { sanitizeString, sanitizeEmail } from '../../../../lib/sanitize';
 
 /**
  * Admin-only API endpoint for managing a specific user
- * GET: Retrieve a specific user
- * PATCH: Update a user (e.g., change role)
- * DELETE: Delete a user
+ * GET - Get user details
+ * PUT - Update user details  
+ * DELETE - Delete a user
  */
 export default async function handler(req, res) {
   // Check if the user is an admin
   const session = await requireAdmin(req, res);
   if (!session) return; // requireAdmin already sends the appropriate error response
-  
-  // Get user ID from the URL
+
   const { id } = req.query;
   
-  // Connect to database
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      message: 'User ID is required'
+    });
+  }
+
   await dbConnect();
-  
-  // Handle different HTTP methods
-  switch (req.method) {
-    case 'GET':
-      try {
-        const user = await User.findById(id).select('-password');
-        
-        if (!user) {
-          return res.status(404).json({ 
-            success: false, 
-            message: 'User not found' 
-          });
-        }
-        
-        return res.status(200).json({ 
-          success: true, 
-          user 
-        });
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Server error' 
+
+  if (req.method === 'GET') {
+    try {
+      const user = await User.findById(id).select('-password');
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
         });
       }
-      
-    case 'PATCH':
-      try {
-        const { role } = req.body;
-        
-        // Validate the role
-        if (role && !['user', 'admin'].includes(role)) {
-          return res.status(400).json({ 
-            success: false, 
-            message: 'Invalid role. Must be either "user" or "admin".' 
-          });
-        }
-        
-        // Find and update the user
-        const updatedUser = await User.findByIdAndUpdate(
-          id, 
-          { role }, 
-          { new: true, runValidators: true }
-        ).select('-password');
-        
-        if (!updatedUser) {
-          return res.status(404).json({ 
-            success: false, 
-            message: 'User not found' 
-          });
-        }
-        
-        return res.status(200).json({ 
-          success: true, 
-          user: updatedUser 
-        });
-      } catch (error) {
-        console.error('Error updating user:', error);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Server error' 
-        });
-      }
-      
-    case 'DELETE':
-      try {
-        // Protect against deleting your own account
-        if (id === session.user.id) {
-          return res.status(400).json({ 
-            success: false, 
-            message: 'You cannot delete your own account while logged in.' 
-          });
-        }
-        
-        // Find and delete the user
-        const deletedUser = await User.findByIdAndDelete(id);
-        
-        if (!deletedUser) {
-          return res.status(404).json({ 
-            success: false, 
-            message: 'User not found' 
-          });
-        }
-        
-        return res.status(200).json({ 
-          success: true, 
-          message: 'User deleted successfully' 
-        });
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Server error' 
-        });
-      }
-      
-    default:
-      res.setHeader('Allow', ['GET', 'PATCH', 'DELETE']);
-      return res.status(405).json({ 
-        success: false, 
-        message: `Method ${req.method} not allowed` 
+
+      res.status(200).json({
+        success: true,
+        data: user
       });
+
+    } catch (error) {
+      console.error('Admin user GET error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch user'
+      });
+    }
+
+  } else if (req.method === 'PUT') {
+    try {
+      const { name, email, role } = req.body;
+
+      // Find the user
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Sanitize inputs
+      const sanitizedName = name ? sanitizeString(name) : user.name;
+      const sanitizedEmail = email ? sanitizeEmail(email) : user.email;
+
+      // Validate role if provided
+      if (role && !['user', 'admin'].includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role. Must be either "user" or "admin".'
+        });
+      }
+
+      // Check if email is already in use by another user
+      if (sanitizedEmail !== user.email) {
+        const existingUser = await User.findOne({ 
+          email: sanitizedEmail, 
+          _id: { $ne: id } 
+        });
+        
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email already in use by another user'
+          });
+        }
+      }
+
+      // Update user
+      const updatedUser = await User.findByIdAndUpdate(
+        id,
+        {
+          name: sanitizedName,
+          email: sanitizedEmail,
+          ...(role && { role })
+        },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      res.status(200).json({
+        success: true,
+        message: 'User updated successfully',
+        data: updatedUser
+      });
+
+    } catch (error) {
+      console.error('Admin user PUT error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update user'
+      });
+    }
+
+  } else if (req.method === 'DELETE') {
+    try {
+      const user = await User.findById(id);
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Prevent admin from deleting themselves
+      if (user.clerkUserId === session.userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete your own account'
+        });
+      }
+
+      await User.findByIdAndDelete(id);
+
+      res.status(200).json({
+        success: true,
+        message: 'User deleted successfully'
+      });
+
+    } catch (error) {
+      console.error('Admin user DELETE error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete user'
+      });
+    }
+
+  } else {
+    res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
+    res.status(405).json({
+      success: false,
+      message: `Method ${req.method} not allowed`
+    });
   }
 } 

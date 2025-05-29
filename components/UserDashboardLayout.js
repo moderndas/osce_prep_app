@@ -1,10 +1,11 @@
 import { useRouter } from 'next/router';
-import { signOut } from 'next-auth/react';
+import { useClerk } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 export default function UserDashboardLayout({ children }) {
   const router = useRouter();
+  const { signOut } = useClerk();
   const [pageInfo, setPageInfo] = useState({ title: 'Dashboard', subtitle: 'Welcome to your OSCE prep dashboard.' });
   
   // Update page title and subtitle based on current route
@@ -40,7 +41,7 @@ export default function UserDashboardLayout({ children }) {
   }, [router.pathname]);
   
   const handleSignOut = () => {
-    signOut({ redirect: false }).then(() => {
+    signOut(() => {
       router.push('/');
     });
   };

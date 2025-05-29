@@ -1,12 +1,10 @@
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { useUser } from '@clerk/nextjs';
 import { useState } from 'react';
 import AdminDashboardLayout from '../../components/AdminDashboardLayout';
-import { withAdminAuth } from '../../lib/auth';
+import { withAdminAuth } from '../../lib/auth-clerk';
 
 function AdminSettings() {
-  const { data: session } = useSession();
-  const router = useRouter();
+  const { user, isLoaded } = useUser();
   
   const [formData, setFormData] = useState({
     appSettings: {

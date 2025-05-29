@@ -1,28 +1,21 @@
-import { ObjectId } from 'mongodb';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
-import clientPromise from '../../../lib/mongodb';
+import { requireAuth, requireAdmin } from '../../../lib/auth-clerk';
 import dbConnect from '../../../lib/db';
 import Station from '../../../models/Station';
+import mongoose from 'mongoose';
 
 export default async function handler(req, res) {
   // Get the station ID from the URL
   const { id } = req.query;
   
   // Check if the user is authenticated
-  const session = await getServerSession(req, res, authOptions);
-  if (!session) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Unauthorized' 
-    });
-  }
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
 
   // Connect to MongoDB
   await dbConnect();
   
-  // Check if it's a valid ObjectId
-  if (!id || id.length !== 24) {
+  // Check if it's a valid ObjectId using mongoose
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ 
       success: false, 
       message: 'Invalid station ID' 
@@ -44,8 +37,8 @@ export default async function handler(req, res) {
         }
         
         // Check if the user has permission to view this station
-        const isAdmin = session.user.role === 'admin';
-        if (!isAdmin && station.createdBy !== session.user.id && !station.isPublic) {
+        const isAdmin = auth.user.role === 'admin';
+        if (!isAdmin && station.createdBy !== auth.userId && !station.isPublic) {
           return res.status(403).json({
             success: false,
             message: 'You do not have permission to access this station'
@@ -67,7 +60,7 @@ export default async function handler(req, res) {
     case 'PUT':
       try {
         // Check if user is admin
-        if (session.user.role !== 'admin') {
+        if (auth.user.role !== 'admin') {
           return res.status(403).json({
             success: false,
             message: 'Only administrators can update stations'
@@ -130,7 +123,7 @@ export default async function handler(req, res) {
     case 'DELETE':
       try {
         // Check if user is admin
-        if (session.user.role !== 'admin') {
+        if (auth.user.role !== 'admin') {
           return res.status(403).json({
             success: false,
             message: 'Only administrators can delete stations'

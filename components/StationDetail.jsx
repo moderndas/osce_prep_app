@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import { useRouter } from 'next/router'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
 import { AnamEvent } from '@anam-ai/js-sdk'
 
@@ -38,7 +38,7 @@ Assistant: Can i take 3 pills of Advil back to back?
 
 export default function StationDetail({ station }) {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { user } = useUser()
   const videoRef = useRef(null)
   const audioRef = useRef(null)
   const anamClientRef = useRef(null)

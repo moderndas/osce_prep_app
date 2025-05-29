@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import { safePathResolve } from '../../../lib/security';
 
 const readFile = promisify(fs.readFile);
 const stat = promisify(fs.stat);
@@ -12,7 +13,21 @@ export default async function handler(req, res) {
 
   try {
     const { id } = req.query;
-    const videoPath = path.join(process.cwd(), 'public', 'uploads', `${id}.webm`);
+    
+    // Validate id to prevent path traversal or malicious input
+    if (!id || /[^a-zA-Z0-9_-]/.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid video ID' });
+    }
+    
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    
+    // Use path traversal protection
+    const videoPath = safePathResolve(uploadsDir, `${id}.webm`);
+    
+    // If path is unsafe or null, return error
+    if (!videoPath) {
+      return res.status(400).json({ success: false, message: 'Invalid path' });
+    }
 
     // Check if file exists
     try {

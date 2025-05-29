@@ -1,17 +1,13 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]";
+import { getAuth } from '@clerk/nextjs/server';
 import dbConnect from "../../../lib/db";
 import Station from "../../../models/Station";
+import { stationCreationLimiter } from "../../../lib/rateLimit";
+import { requireAuth } from "../../../lib/auth-clerk";
 
 export default async function handler(req, res) {
-  const session = await getServerSession(req, res, authOptions);
-
-  if (!session) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Unauthorized' 
-    });
-  }
+  // Get authenticated user (automatically creates MongoDB user if needed)
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
 
   // Connect to database
   await dbConnect();
@@ -19,14 +15,12 @@ export default async function handler(req, res) {
   // Handle POST request to create a new station
   if (req.method === 'POST') {
     try {
-      // Only allow admins to create stations
-      if (session.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Only administrators can create stations'
-        });
-      }
-
+      // Apply station creation rate limiting
+      await stationCreationLimiter(req, res);
+      
+      // For now, allow any authenticated user to create stations
+      // Later you can add role-based restrictions via Clerk metadata
+      
       const { stationName, clinicalBackground, systemPrompt, analysisPrompt, personaId, isPublic = true } = req.body;
 
       // Validate required fields
@@ -37,7 +31,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Create new station
+      // Create new station with Clerk user ID
       const station = await Station.create({
         stationName,
         clinicalBackground,
@@ -45,7 +39,7 @@ export default async function handler(req, res) {
         analysisPrompt: analysisPrompt || '',
         personaId: personaId || '',
         isPublic: isPublic === true || isPublic === 'true',
-        createdBy: session.user.id
+        createdBy: auth.userId  // Use Clerk user ID
       });
 
       return res.status(201).json({
@@ -65,17 +59,14 @@ export default async function handler(req, res) {
   // Handle GET request to fetch stations
   if (req.method === 'GET') {
     try {
-      let query = {};
-      
-      // If not admin, only fetch public stations or ones created by the user
-      if (session.user.role !== 'admin') {
-        query = {
-          $or: [
-            { isPublic: true },
-            { createdBy: session.user.id }
-          ]
-        };
-      }
+      // For now, show all public stations and user's own stations
+      // Later you can add role-based filtering via Clerk metadata
+      const query = {
+        $or: [
+          { isPublic: true },
+          { createdBy: auth.userId }
+        ]
+      };
       
       // Fetch stations based on query
       const stations = await Station.find(query).sort({ createdAt: -1 });
@@ -98,10 +89,9 @@ export default async function handler(req, res) {
     try {
       const { id } = req.query;
       
-      // Allow admins to delete any station, but regular users can only delete their own
-      const query = session.user.role === 'admin'
-        ? { _id: id }
-        : { _id: id, createdBy: session.user.id };
+      // Users can only delete their own stations for now
+      // Later you can add admin role checking via Clerk metadata
+      const query = { _id: id, createdBy: auth.userId };
         
       const station = await Station.findOneAndDelete(query);
 

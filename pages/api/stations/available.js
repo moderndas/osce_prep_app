@@ -1,14 +1,11 @@
-import { getSession } from 'next-auth/react';
+import { requireAuth } from '../../../lib/auth-clerk';
 import dbConnect from '../../../lib/db';
 import Station from '../../../models/Station';
 
 export default async function handler(req, res) {
-  const session = await getSession({ req });
-
   // Check authentication
-  if (!session) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
 
   // Connect to database
   await dbConnect();

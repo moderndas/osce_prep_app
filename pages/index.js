@@ -1,4 +1,4 @@
-import { useSession } from 'next-auth/react';
+import { useUser, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { user, isSignedIn } = useUser();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   
@@ -110,14 +110,12 @@ export default function Home() {
 
   // Redirect authenticated users to their dashboard
   useEffect(() => {
-    if (session) {
-      if (session.user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+    if (isSignedIn && user) {
+      // For now, redirect all authenticated users to dashboard
+      // Later you can add role-based routing when you set up user roles in Clerk
+      router.push('/dashboard');
     }
-  }, [session, router]);
+  }, [isSignedIn, user, router]);
 
   return (
     <div className="min-h-screen bg-base-100">
@@ -149,12 +147,21 @@ export default function Home() {
               </a>
             </nav>
             <div className="flex items-center">
-              <Link href="/auth/signin" className="text-base font-medium text-warm-600 hover:text-accent mr-8">
-                Login
-              </Link>
-              <Link href="/auth/signup" className="btn btn-primary">
-                Get Started
-              </Link>
+              <SignedOut>
+                <Link href="/auth/signin">
+                  <button className="text-base font-medium text-warm-600 hover:text-accent mr-8">
+                    Login
+                  </button>
+                </Link>
+                <Link href="/auth/signup">
+                  <button className="btn btn-primary">
+                    Get Started
+                  </button>
+                </Link>
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
             </div>
           </div>
         </div>
@@ -173,9 +180,18 @@ export default function Home() {
                   Practice realistic clinical scenarios with our AI-powered platform designed to help you excel in your Objective Structured Clinical Examinations.
                 </p>
                 <div className="mt-10">
-                  <Link href="/auth/signup" className="btn btn-primary btn-lg mr-4">
-                    Start Free Trial
-                  </Link>
+                  <SignedOut>
+                    <Link href="/auth/signup">
+                      <button className="btn btn-primary btn-lg mr-4">
+                        Start Free Trial
+                      </button>
+                    </Link>
+                  </SignedOut>
+                  <SignedIn>
+                    <Link href="/dashboard" className="btn btn-primary btn-lg mr-4">
+                      Go to Dashboard
+                    </Link>
+                  </SignedIn>
                   <a href="#how-it-works" className="btn btn-outline btn-lg">
                     Learn More
                   </a>
@@ -348,9 +364,18 @@ export default function Home() {
               </p>
               
               <div className="mt-10">
-                <Link href="/auth/signup" className="btn bg-white text-primary hover:bg-white/90 btn-lg">
-                  Start Free Trial
-                </Link>
+                <SignedOut>
+                  <Link href="/auth/signup">
+                    <button className="btn bg-white text-primary hover:bg-white/90 btn-lg">
+                      Start Free Trial
+                    </button>
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard" className="btn bg-white text-primary hover:bg-white/90 btn-lg">
+                    Go to Dashboard
+                  </Link>
+                </SignedIn>
                 <p className="mt-4 text-sm text-primary-foreground/80">No credit card required. Cancel anytime.</p>
               </div>
             </div>

@@ -1,5 +1,6 @@
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
+import { useState } from 'react';
 import UserDashboardLayout from '../../components/UserDashboardLayout';
 
 // FAQ data
@@ -30,17 +31,18 @@ const faqs = [
   }
 ];
 
-export default function FAQPage() {
-  const { data: session, status } = useSession();
+export default function DashboardFAQPage() {
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState(0);
 
   // Protect the route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

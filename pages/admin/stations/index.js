@@ -1,12 +1,11 @@
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
-import AdminDashboardLayout from '../../../components/AdminDashboardLayout';
-import { withAdminAuth } from '../../../lib/auth';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useUser } from '@clerk/nextjs';
+import AdminDashboardLayout from '../../../components/AdminDashboardLayout';
 
 function AdminStations() {
-  const { data: session } = useSession();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,16 +13,50 @@ function AdminStations() {
   const [deleteLoading, setDeleteLoading] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [stationToDelete, setStationToDelete] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check admin status
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      const checkAdminStatus = async () => {
+        try {
+          const response = await fetch('/api/admin/check', {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+            router.push('/dashboard');
+          }
+        } catch (err) {
+          console.error('Error checking admin status:', err);
+          setIsAdmin(false);
+          router.push('/dashboard');
+        } finally {
+          setAuthLoading(false);
+        }
+      };
+
+      checkAdminStatus();
+    } else if (isLoaded && !isSignedIn) {
+      router.push('/auth/signin');
+    }
+  }, [isLoaded, isSignedIn, user, router]);
 
   const fetchStations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/stations');
+      const response = await fetch('/api/admin/stations', {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       if (!response.ok) throw new Error(data.message || 'Failed to fetch stations');
       
-      setStations(data.data || []);
+      setStations(data.data?.stations || []);
       setError('');
     } catch (err) {
       console.error('Error loading stations:', err);
@@ -34,8 +67,27 @@ function AdminStations() {
   };
 
   useEffect(() => {
-    fetchStations();
-  }, []);
+    if (isAdmin && !authLoading) {
+      fetchStations();
+    }
+  }, [isAdmin, authLoading]);
+
+  // Show loading while checking authentication
+  if (!isLoaded || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <div className="flex flex-col items-center gap-4">
+          <span className="loading loading-spinner loading-lg"></span>
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not admin (will redirect)
+  if (!isAdmin) {
+    return null;
+  }
 
   const openDeleteModal = (stationId) => {
     setStationToDelete(stationId);
@@ -54,6 +106,7 @@ function AdminStations() {
     try {
       const response = await fetch(`/api/stations/${stationToDelete}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -199,12 +252,5 @@ function AdminStations() {
     </AdminDashboardLayout>
   );
 }
-
-// Wrap the page with admin auth protection
-export const getServerSideProps = withAdminAuth(async (context) => {
-  return {
-    props: {}
-  };
-});
 
 export default AdminStations; 

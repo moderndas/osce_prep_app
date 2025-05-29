@@ -1,2 +1,2 @@
-PORT=3000
-NEXTAUTH_SECRET=wVaAvpdy/z50VumEWYGZg4AHdpympDkPtjMmg9ovJbE= 
+# Environment configuration file removed - NextAuth is no longer used in this project
+# All authentication is now handled by Clerk 

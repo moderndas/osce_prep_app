@@ -1,18 +1,46 @@
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 import UserDashboardLayout from '../../components/UserDashboardLayout';
 
 export default function DashboardHome() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
+  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
+
+  // Check if user is admin and redirect
+  useEffect(() => {
+    const checkAdminAndRedirect = async () => {
+      if (!isLoaded || !isSignedIn) return;
+      
+      try {
+        const response = await fetch('/api/admin/check', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // User is admin, redirect to admin dashboard
+          router.push('/admin');
+          return;
+        }
+      } catch (err) {
+        // Not admin, continue to user dashboard
+        console.log('User is not admin, showing user dashboard');
+      }
+      
+      setAdminCheckComplete(true);
+    };
+
+    checkAdminAndRedirect();
+  }, [isLoaded, isSignedIn, router]);
 
   // Protect the dashboard route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading') {
+  if (!isLoaded || !adminCheckComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

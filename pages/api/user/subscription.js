@@ -1,4 +1,4 @@
-import { getSession } from 'next-auth/react';
+import { requireAuth } from '../../../lib/auth-clerk';
 import dbConnect from '../../../lib/db';
 import User from '../../../models/User';
 import Subscription from '../../../models/Subscription';
@@ -9,20 +9,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const session = await getSession({ req });
-    
-    if (!session) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const auth = await requireAuth(req, res);
+    if (!auth) return; // requireAuth already sends error response
 
     await dbConnect();
     
-    // Get user from database
-    const user = await User.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // User is already available from requireAuth
+    const user = auth.user;
     
     // Get subscription details if active
     let subscriptionDetails = null;

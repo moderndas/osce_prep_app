@@ -1,4 +1,4 @@
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import UserDashboardLayout from '../../components/UserDashboardLayout';
@@ -54,7 +54,7 @@ const sampleStations = [
 ];
 
 export default function StationsPage() {
-  const { data: session, status } = useSession();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,7 @@ export default function StationsPage() {
 
   // Fetch stations
   useEffect(() => {
-    if (session) {
+    if (isSignedIn && user) {
       const fetchStations = async () => {
         try {
           const response = await fetch('/api/stations');
@@ -85,15 +85,15 @@ export default function StationsPage() {
       
       fetchStations();
     }
-  }, [session]);
+  }, [isSignedIn, user]);
 
   // Protect the route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading' || loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

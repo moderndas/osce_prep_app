@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import dynamic from 'next/dynamic';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../api/auth/[...nextauth]';
 
 // Import the client-only component that contains all browser-specific code
 // No need for SSR on this component
@@ -12,18 +10,47 @@ const StationDetail = dynamic(() => import('../../components/StationDetail'), {
   ssr: false,
 });
 
-export default function StationDetailPage({ station, error }) {
+export default function StationDetailPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const [isFetchingStation, setIsFetchingStation] = useState(false);
+  const { id } = router.query;
+  const { user, isLoaded, isSignedIn } = useUser();
+  const [station, setStation] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Protect the route
-  if (status === 'unauthenticated') {
+  if (isLoaded && !isSignedIn) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (status === 'loading' || isFetchingStation) {
+  // Fetch station data
+  useEffect(() => {
+    if (!id || !isSignedIn) return;
+
+    const fetchStation = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/stations/${id}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch station');
+        }
+
+        setStation(data.data);
+      } catch (err) {
+        console.error('Error fetching station:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStation();
+  }, [id, isSignedIn]);
+
+  if (!isLoaded || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-200">
         <div className="flex flex-col items-center gap-4">
@@ -34,7 +61,7 @@ export default function StationDetailPage({ station, error }) {
     );
   }
 
-  if (!station) {
+  if (error || !station) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-base-200 p-4">
         <div className="alert alert-error max-w-md">
@@ -56,63 +83,4 @@ export default function StationDetailPage({ station, error }) {
       <StationDetail station={station} />
     </div>
   );
-}
-
-// Server-side data fetching
-export async function getServerSideProps(context) {
-  const { id } = context.params;
-  const session = await getServerSession(context.req, context.res, authOptions);
-
-  // Check for authentication
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    };
-  }
-  
-  try {
-    // Connect to the database directly
-    const { connectDB } = await import('../../lib/mongodb');
-    const { ObjectId } = await import('mongodb');
-    const db = await connectDB();
-    
-    // Safely convert the ID string to a MongoDB ObjectId
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch (err) {
-      throw new Error('Invalid station ID format');
-    }
-    
-    // Get the station from the database
-    const stationData = await db.collection('stations').findOne({ _id: objectId });
-    
-    if (!stationData) {
-      throw new Error('Station not found');
-    }
-    
-    // Convert MongoDB document to plain object with properly stringified _id
-    const station = JSON.parse(JSON.stringify({
-      ...stationData,
-      id: stationData._id.toString()
-    }));
-    
-    return {
-      props: {
-        station: station || null,
-      },
-    };
-  } catch (error) {
-    console.error('Error in getServerSideProps:', error);
-    
-    return {
-      props: {
-        station: null,
-        error: error.message || 'Failed to load station',
-      },
-    };
-  }
 } 
