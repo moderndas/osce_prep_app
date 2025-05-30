@@ -10,7 +10,11 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   safelist: [
-    { pattern: /^collapse(-.*)?$/ }
+    'collapse',
+    'collapse-open',
+    'collapse-title',
+    'collapse-content',
+    'collapse-arrow',
   ],
   theme: {
     container: {

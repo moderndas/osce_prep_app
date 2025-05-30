@@ -61,7 +61,7 @@ export default function DashboardFAQPage() {
       
       <div className="space-y-4">
         {faqs.map((faq, index) => (
-          <div key={index} className="collapse collapse-arrow bg-base-200">
+          <div key={index} className="collapse collapse-arrow bg-base-200 border border-border rounded-lg">
             <input type="checkbox" defaultChecked={index === 0} /> 
             <div className="collapse-title text-xl font-medium">
               {faq.question}

@@ -147,7 +147,6 @@ body {
   /* Card spacing */
   .card {
     border-radius: var(--radius);
-    overflow: hidden;
   }
   
   .card-title {
@@ -368,7 +367,3 @@ button, .btn, a[role="button"], input[type="button"], input[type="submit"] {
   border: 1px solid hsl(var(--foreground) / 0.4) !important;
 }
 
-/* Force accordion open state visibility */
-.collapse input:checked ~ .collapse-content {
-  visibility: visible !important;
-} 
