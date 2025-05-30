@@ -18,10 +18,6 @@ const faqs = [
     answer: "Free users can create up to 5 OSCE stations. Premium subscribers have unlimited station creation."
   },
   {
-    question: "Can I share my stations with others?",
-    answer: "Currently, stations are private to your account. We plan to introduce sharing functionality in a future update."
-  },
-  {
     question: "How is my performance evaluated?",
     answer: "Your performance is evaluated using AI that analyzes your responses against the expected answers you provide when creating the station."
   },
@@ -73,7 +69,7 @@ export default function DashboardFAQPage() {
         ))}
       </div>
       
-      <div className="mt-8 bg-base-200 rounded-lg p-6">
+      <div className="mt-8 bg-base-200 rounded-lg p-6 border border-border">
         <h3 className="text-lg font-semibold">Still have questions?</h3>
         <p className="mt-2">If you couldn't find the answer to your question, feel free to contact us.</p>
         <div className="mt-4">
