@@ -1,6 +1,5 @@
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
 import UserDashboardLayout from '../../components/UserDashboardLayout';
 
 // FAQ data
@@ -57,23 +56,38 @@ export default function DashboardFAQPage() {
       
       <div className="space-y-4">
         {faqs.map((faq, index) => (
-          <div key={index} className="collapse collapse-arrow bg-base-200 border border-border rounded-lg">
-            <input type="checkbox" defaultChecked={index === 0} /> 
-            <div className="collapse-title text-xl font-medium">
-              {faq.question}
+          <details 
+            key={index} 
+            className="border border-gray-300 rounded-lg bg-white shadow-sm"
+            open={index === 0}
+          >
+            <summary className="px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 text-lg font-medium text-gray-900 list-none">
+              <div className="flex justify-between items-center">
+                <span>{faq.question}</span>
+                <svg 
+                  className="w-5 h-5 text-gray-600 transition-transform duration-200 details-arrow" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </summary>
+            <div className="px-6 pb-4 pt-2 border-t border-gray-200">
+              <p className="text-gray-700 leading-relaxed">{faq.answer}</p>
             </div>
-            <div className="collapse-content"> 
-              <p>{faq.answer}</p>
-            </div>
-          </div>
+          </details>
         ))}
       </div>
       
-      <div className="mt-8 bg-base-200 rounded-lg p-6 border border-border">
-        <h3 className="text-lg font-semibold">Still have questions?</h3>
-        <p className="mt-2">If you couldn't find the answer to your question, feel free to contact us.</p>
+      <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Still have questions?</h3>
+        <p className="mt-2 text-gray-600">If you couldn't find the answer to your question, feel free to contact us.</p>
         <div className="mt-4">
-          <button className="btn btn-primary">Contact Support</button>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
+            Contact Support
+          </button>
         </div>
       </div>
     </UserDashboardLayout>
