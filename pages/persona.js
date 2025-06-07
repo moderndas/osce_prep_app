@@ -85,35 +85,51 @@ export default function PersonaPage() {
         .map(m => ({ role: m.role, content: (m.text || m.content).trim() }))
     ];
 
+    // 🔍 DEBUG: Log what gets sent to OpenAI
+    console.log('🔍 Messages sent to OpenAI:', JSON.stringify(messages, null, 2));
+
     // 2) Open Anam's TTS stream
     const talkStream = anamClientRef.current.createTalkMessageStream();
 
     try {
-      // 3) Get the response from OpenAI
-      const response = await fetch("/api/openai-chat", {
+      // 3) Get streaming response from OpenAI
+      const response = await fetch("/api/openai-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from OpenAI');
+        throw new Error('Failed to get streaming response from OpenAI');
       }
 
-      const { reply } = await response.json();
+      // 4) Stream the response directly to Anam as tokens arrive
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      // 4) Stream the reply to Anam
-      if (talkStream.isActive()) {
-        // Split the reply into chunks and stream them
-        const chunks = reply.match(/.{1,50}/g) || [reply];
-        for (let i = 0; i < chunks.length; i++) {
-          const isLastChunk = i === chunks.length - 1;
-          talkStream.streamMessageChunk(chunks[i], isLastChunk);
-          // Add a small delay between chunks for natural speech
-          if (!isLastChunk) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        // Send chunks when we have complete words/phrases
+        const words = buffer.split(' ');
+        if (words.length > 1) {
+          const readyText = words.slice(0, -1).join(' ') + ' ';
+          buffer = words[words.length - 1];
+          
+          if (talkStream.isActive() && readyText.trim()) {
+            talkStream.streamMessageChunk(readyText, false);
           }
         }
+      }
+
+      // Send final chunk
+      if (buffer.trim() && talkStream.isActive()) {
+        talkStream.streamMessageChunk(buffer.trim(), true);
       }
     } catch (error) {
       console.error('Error in streamCustomBrainReply:', error);
