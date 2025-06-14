@@ -47,6 +47,7 @@ export default function PersonaPage() {
   const [userTurns, setUserTurns] = useState([]);
   const seenUserMsgIds = useRef(new Set());
   const [analysis, setAnalysis] = useState("");
+  const cleanupListenersRef = useRef(null);
 
   // Protect the route
   if (isLoaded && !isSignedIn) {
@@ -84,9 +85,6 @@ export default function PersonaPage() {
         .filter(m => (m.role === "user" || m.role === "assistant") && (m.text || m.content)?.trim())
         .map(m => ({ role: m.role, content: (m.text || m.content).trim() }))
     ];
-
-    // 🔍 DEBUG: Log what gets sent to OpenAI
-    console.log('🔍 Messages sent to OpenAI:', JSON.stringify(messages, null, 2));
 
     // 2) Open Anam's TTS stream
     const talkStream = anamClientRef.current.createTalkMessageStream();
@@ -139,7 +137,6 @@ export default function PersonaPage() {
 
   // ─── Message History Handler ───────────────────────────────────────────────
   const handleMessageHistory = async (messages) => {
-    console.log('Message History Payload:', JSON.stringify(messages, null, 2));
     const last = messages[messages.length - 1];
     if (last.role === 'user') {
       try {
@@ -149,6 +146,26 @@ export default function PersonaPage() {
         console.error('Error getting custom brain reply:', error);
         setError('Failed to get AI response. Please try again.');
       }
+    }
+  };
+
+  // ─── Handle User Utterance (for complete turns) ────────────────────────────
+  const handleUserUtterance = async (userText) => {
+    try {
+      // Get the current message history from Anam client
+      const currentHistory = anamClientRef.current?.getMessageHistory?.() || [];
+      
+      // If we have history, use it; otherwise build a simple history with the user text
+      if (currentHistory.length > 0) {
+        await streamCustomBrainReply(currentHistory);
+      } else {
+        // Fallback: create a minimal history with just this user message
+        const fallbackHistory = [{ role: 'user', content: userText }];
+        await streamCustomBrainReply(fallbackHistory);
+      }
+    } catch (error) {
+      console.error('Error in handleUserUtterance:', error);
+      setError('Failed to get AI response. Please try again.');
     }
   };
 
@@ -162,7 +179,7 @@ export default function PersonaPage() {
         body: JSON.stringify({
           personaConfig: {
             id: process.env.NEXT_PUBLIC_PERSONA_ID
-        }
+          }
         })
       });
 
@@ -209,26 +226,44 @@ export default function PersonaPage() {
       // Start the stream with proper element references
       await anamClient.streamToVideoAndAudioElements("anamVideo", "anamAudio");
 
-      // Consolidated message history listener
-      anamClient.addListener("MESSAGE_HISTORY_UPDATED", (history) => {
-        // 1) Capture any new user turns
-        history.forEach(msg => {
-          if (msg.role === 'user' && !seenUserMsgIds.current.has(msg.id)) {
-            seenUserMsgIds.current.add(msg.id);
-            console.log('Captured user turn:', msg.id, msg.text || msg.content);
-            setUserTurns(prev => [...prev, (msg.text||msg.content).trim()]);
-          }
-        });
-
-        // 2) If the last message is from user, stream the AI reply
-        const last = history[history.length - 1];
-        if (last.role === 'user') {
-          streamCustomBrainReply(history).catch(err => {
-            console.error('Stream error:', err);
-            setError('Failed to stream AI response.');
+      // Clean event listener setup with proper cleanup
+      const setupEventListeners = () => {
+        // 1️⃣ UI sync only
+        const onHistory = (history) => {
+          // Capture any new user turns for UI display
+          history.forEach(msg => {
+            if (msg.role === 'user' && !seenUserMsgIds.current.has(msg.id)) {
+              seenUserMsgIds.current.add(msg.id);
+              console.log('Captured user turn:', msg.id, msg.text || msg.content);
+              setUserTurns(prev => [...prev, (msg.text||msg.content).trim()]);
+            }
           });
-        }
-      });
+        };
+
+        // 2️⃣ Single-shot user turn & send
+        const onStream = (evt) => {
+          // Only process user events, ignore persona/assistant events
+          if (evt.role !== "user") return;
+          
+          if (evt.endOfSpeech) {
+            const text = evt.text || evt.content;
+            console.log("Full user turn:", text);
+            handleUserUtterance(text.trim());
+          }
+        };
+
+        anamClient.addListener("MESSAGE_HISTORY_UPDATED", onHistory);
+        anamClient.addListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+
+        // Return cleanup function
+        return () => {
+          anamClient.removeListener("MESSAGE_HISTORY_UPDATED", onHistory);
+          anamClient.removeListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+        };
+      };
+
+      // Setup listeners and store cleanup function
+      cleanupListenersRef.current = setupEventListeners();
 
       setIsLoading(false);
       setIsSessionActive(true);
@@ -244,6 +279,12 @@ export default function PersonaPage() {
   const abortSession = async () => {
     try {
       if (anamClientRef.current) {
+        // Clean up event listeners first
+        if (cleanupListenersRef.current) {
+          cleanupListenersRef.current();
+          cleanupListenersRef.current = null;
+        }
+        
         if (typeof anamClientRef.current.dispose === 'function') {
           await anamClientRef.current.dispose();
         } else {
@@ -267,6 +308,13 @@ export default function PersonaPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Cleanup event listeners
+      if (cleanupListenersRef.current) {
+        cleanupListenersRef.current();
+        cleanupListenersRef.current = null;
+      }
+      
+      // Cleanup Anam client
       if (anamClientRef.current) {
         try {
           anamClientRef.current.dispose();

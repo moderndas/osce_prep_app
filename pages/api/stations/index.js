@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       // For now, allow any authenticated user to create stations
       // Later you can add role-based restrictions via Clerk metadata
       
-      const { stationName, clinicalBackground, systemPrompt, analysisPrompt, personaId, isPublic = true } = req.body;
+      const { stationName, clinicalBackground, difficulty, systemPrompt, analysisPrompt, personaId, isPublic = true } = req.body;
 
       // Validate required fields
       if (!stationName || !clinicalBackground) {
@@ -35,6 +35,7 @@ export default async function handler(req, res) {
       const station = await Station.create({
         stationName,
         clinicalBackground,
+        difficulty: difficulty || 'Medium',
         systemPrompt: systemPrompt || '',
         analysisPrompt: analysisPrompt || '',
         personaId: personaId || '',

@@ -91,7 +91,7 @@ export default function SubscriptionPlans({
                   {headerText}
                 </div>
               )}
-              <h3 className="text-xl font-bold">{plan.name}</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight text-foreground mb-4">{plan.name}</h3>
             </div>
             
             {/* Plan Price */}

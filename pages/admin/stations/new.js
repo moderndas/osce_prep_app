@@ -10,12 +10,22 @@ function NewStationPage() {
   const [title, setTitle] = useState('')
   const [intro, setIntro] = useState('')
   const [isPublic, setIsPublic] = useState(true)
+  const [difficulty, setDifficulty] = useState('Medium')
   const [systemPrompt, setSystemPrompt] = useState('')
   const [analysisPrompt, setAnalysisPrompt] = useState('')
   const [personaId, setPersonaId] = useState('')
   const [error, setError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+  
+  // Reference upload states
+  const [referenceFiles, setReferenceFiles] = useState([null, null, null])
+  const [referenceNames, setReferenceNames] = useState(['', '', ''])
+  const [uploadingReferences, setUploadingReferences] = useState(false)
+
+  // Patient profile upload states
+  const [patientProfileFile, setPatientProfileFile] = useState(null)
+  const [patientProfileName, setPatientProfileName] = useState('')
 
   // Check admin status
   useEffect(() => {
@@ -64,6 +74,104 @@ function NewStationPage() {
     return null
   }
 
+  // Reference upload handlers
+  const handleFileChange = (index, file) => {
+    const newFiles = [...referenceFiles];
+    newFiles[index] = file;
+    setReferenceFiles(newFiles);
+  };
+
+  const handleNameChange = (index, name) => {
+    const newNames = [...referenceNames];
+    newNames[index] = name;
+    setReferenceNames(newNames);
+  };
+
+  const removeReference = (index) => {
+    const newFiles = [...referenceFiles];
+    const newNames = [...referenceNames];
+    newFiles[index] = null;
+    newNames[index] = '';
+    setReferenceFiles(newFiles);
+    setReferenceNames(newNames);
+  };
+
+  // Patient profile handlers
+  const handlePatientProfileFileChange = (file) => {
+    setPatientProfileFile(file);
+  };
+
+  const handlePatientProfileNameChange = (name) => {
+    setPatientProfileName(name);
+  };
+
+  const removePatientProfile = () => {
+    setPatientProfileFile(null);
+    setPatientProfileName('');
+  };
+
+  const uploadReferences = async (stationId) => {
+    const formData = new FormData();
+    formData.append('stationId', stationId);
+    
+    let hasReferences = false;
+    const uploadedIndices = [];
+    
+    for (let i = 0; i < 3; i++) {
+      if (referenceFiles[i] && referenceNames[i].trim()) {
+        formData.append(`reference${i}`, referenceFiles[i]);
+        formData.append(`name${i}`, referenceNames[i].trim());
+        hasReferences = true;
+        uploadedIndices.push(i);
+      }
+    }
+    
+    // Add patient profile if provided
+    let hasPatientProfile = false;
+    if (patientProfileFile && patientProfileName.trim()) {
+      formData.append('patientProfile', patientProfileFile);
+      formData.append('patientProfileName', patientProfileName.trim());
+      hasPatientProfile = true;
+    }
+    
+    if (!hasReferences && !hasPatientProfile) return true; // Nothing to upload
+    
+    setUploadingReferences(true);
+    try {
+      const response = await fetch('/api/admin/upload-references', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clear the uploaded form fields
+        const newFiles = [...referenceFiles];
+        const newNames = [...referenceNames];
+        uploadedIndices.forEach(index => {
+          newFiles[index] = null;
+          newNames[index] = '';
+        });
+        setReferenceFiles(newFiles);
+        setReferenceNames(newNames);
+        
+        // Clear patient profile if uploaded
+        if (hasPatientProfile) {
+          setPatientProfileFile(null);
+          setPatientProfileName('');
+        }
+      }
+      
+      return result.success;
+    } catch (error) {
+      console.error('Reference upload error:', error);
+      return false;
+    } finally {
+      setUploadingReferences(false);
+    }
+  };
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
@@ -74,6 +182,7 @@ function NewStationPage() {
       body: JSON.stringify({
         stationName: title,
         clinicalBackground: intro,
+        difficulty: difficulty,
         systemPrompt: systemPrompt,
         analysisPrompt: analysisPrompt,
         personaId: personaId,
@@ -84,6 +193,16 @@ function NewStationPage() {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       return setError(body.message || 'Failed to create station')
+    }
+
+    const stationData = await res.json();
+    const stationId = stationData.data._id;
+
+    // Upload references if any
+    const referencesUploaded = await uploadReferences(stationId);
+    if (!referencesUploaded) {
+      setError('Station created but failed to upload some references');
+      return;
     }
 
     router.push('/admin/stations')
@@ -105,7 +224,7 @@ function NewStationPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Title */}
               <div>
-                <label className="block mb-2 font-medium">Station Title</label>
+                <label className="block mb-2 font-medium text-primary">Station Title</label>
                 <input
                   type="text"
                   required
@@ -118,10 +237,10 @@ function NewStationPage() {
 
               {/* Intro / Description */}
               <div>
-                <label className="block mb-2 font-medium">Clinical Background</label>
+                <label className="block mb-2 font-medium text-primary">Clinical Background</label>
                 <textarea
                   required
-                  rows={5}
+                  rows={3}
                   value={intro}
                   onChange={e => setIntro(e.target.value)}
                   className="textarea textarea-bordered w-full"
@@ -129,11 +248,25 @@ function NewStationPage() {
                 />
               </div>
 
+              {/* Difficulty */}
+              <div>
+                <label className="block mb-2 font-medium text-primary">Difficulty Level</label>
+                <select
+                  value={difficulty}
+                  onChange={e => setDifficulty(e.target.value)}
+                  className="select select-bordered w-full"
+                >
+                  <option value="Low">Level - Low</option>
+                  <option value="Medium">Level - Medium</option>
+                  <option value="High">Level - High</option>
+                </select>
+              </div>
+
               {/* System Prompt */}
               <div>
-                <label className="block mb-2 font-medium">System Prompt</label>
+                <label className="block mb-2 font-medium text-primary">System Prompt</label>
                 <textarea
-                  rows={5}
+                  rows={8}
                   value={systemPrompt}
                   onChange={e => setSystemPrompt(e.target.value)}
                   className="textarea textarea-bordered w-full"
@@ -143,9 +276,9 @@ function NewStationPage() {
 
               {/* Analysis Prompt */}
               <div>
-                <label className="block mb-2 font-medium">Analysis Prompt</label>
+                <label className="block mb-2 font-medium text-primary">Analysis Prompt</label>
                 <textarea
-                  rows={5}
+                  rows={8}
                   value={analysisPrompt}
                   onChange={e => setAnalysisPrompt(e.target.value)}
                   className="textarea textarea-bordered w-full"
@@ -155,7 +288,7 @@ function NewStationPage() {
 
               {/* Persona ID */}
               <div>
-                <label className="block mb-2 font-medium">Persona ID</label>
+                <label className="block mb-2 font-medium text-primary">Persona ID</label>
                 <input
                   type="text"
                   value={personaId}
@@ -177,13 +310,124 @@ function NewStationPage() {
                 <label htmlFor="public" className="cursor-pointer">Make this station available to all users</label>
               </div>
 
+              {/* References Upload Section */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4 text-primary">Station References (Optional)</h3>
+                <p className="text-sm text-gray-600 mb-4">Upload up to 3 PDF references that will be available to users during the station.</p>
+                
+                <div className="space-y-4">
+                  {[0, 1, 2].map(index => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-primary">Reference {index + 1}</h4>
+                        {(referenceFiles[index] || referenceNames[index]) && (
+                          <button
+                            type="button"
+                            onClick={() => removeReference(index)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-primary">Reference Name</label>
+                          <input
+                            type="text"
+                            value={referenceNames[index]}
+                            onChange={e => handleNameChange(index, e.target.value)}
+                            placeholder={`e.g., Clinical Guidelines, Drug Protocol`}
+                            className="input input-bordered w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-primary">PDF File</label>
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={e => handleFileChange(index, e.target.files[0])}
+                            className="file-input file-input-bordered w-full"
+                          />
+                          {referenceFiles[index] && (
+                            <p className="text-sm text-green-600 mt-1">
+                              ✓ {referenceFiles[index].name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Patient Profile Upload Section */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4 text-primary">Patient Profile (Optional)</h3>
+                <p className="text-sm text-gray-600 mb-4">Upload a patient profile document or image that users can view during the station.</p>
+                
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-primary">Patient Profile Document</h4>
+                    {(patientProfileFile || patientProfileName) && (
+                      <button
+                        type="button"
+                        onClick={removePatientProfile}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-primary">Profile Name</label>
+                      <input
+                        type="text"
+                        value={patientProfileName}
+                        onChange={e => handlePatientProfileNameChange(e.target.value)}
+                        placeholder="e.g., Patient Chart, Medical History"
+                        className="input input-bordered w-full"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-primary">File (PDF, JPG, PNG)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={e => handlePatientProfileFileChange(e.target.files[0])}
+                        className="file-input file-input-bordered w-full"
+                      />
+                      {patientProfileFile && (
+                        <p className="text-sm text-green-600 mt-1">
+                          ✓ {patientProfileFile.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Submit */}
               <div className="card-actions justify-end mt-6">
                 <button type="button" className="btn btn-ghost" onClick={() => router.back()}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Create Station
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={uploadingReferences}
+                >
+                  {uploadingReferences ? (
+                    <>
+                      <span className="loading loading-spinner loading-xs mr-2"></span>
+                      Uploading References...
+                    </>
+                  ) : 'Create Station'}
                 </button>
               </div>
             </form>

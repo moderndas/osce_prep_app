@@ -47,7 +47,7 @@ export default function AdminDashboardLayout({ children }) {
       <div className="w-64 bg-[#1A1F2C] text-white flex flex-col">
         {/* Logo */}
         <div className="p-6 text-xl font-bold">
-          <span className="text-primary">OSCE</span> Prep
+          <span className="text-primary">OSCE</span> Help
         </div>
         
         {/* Navigation Links */}
@@ -87,7 +87,7 @@ export default function AdminDashboardLayout({ children }) {
         {/* Header */}
         <header className="bg-secondary/50 border-b border-border flex justify-between items-center p-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">{pageInfo.title}</h1>
+            <h2 className="text-3xl font-bold mb-4">{pageInfo.title}</h2>
             <p className="text-muted-foreground">{pageInfo.subtitle}</p>
           </div>
           <button 

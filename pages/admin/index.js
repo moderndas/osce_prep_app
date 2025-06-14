@@ -90,57 +90,18 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link href="/admin/stations/new">
-            <div className="card bg-primary text-primary-content shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-              <div className="card-body text-center">
-                <h3 className="card-title justify-center">Create Station</h3>
-                <p>Add a new OSCE station</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/admin/stations">
-            <div className="card bg-secondary text-secondary-content shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-              <div className="card-body text-center">
-                <h3 className="card-title justify-center">Manage Stations</h3>
-                <p>Edit existing stations</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/admin/users">
-            <div className="card bg-accent text-accent-content shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-              <div className="card-body text-center">
-                <h3 className="card-title justify-center">Manage Users</h3>
-                <p>View and edit users</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/admin/settings">
-            <div className="card bg-neutral text-neutral-content shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-              <div className="card-body text-center">
-                <h3 className="card-title justify-center">Settings</h3>
-                <p>Platform configuration</p>
-              </div>
-            </div>
-          </Link>
-        </div>
-
         {/* Recent Activity */}
         <div className="card bg-base-100 shadow">
           <div className="card-body">
-            <h2 className="card-title">Recent Activity</h2>
+            <h2 className="text-lg font-semibold text-warm-600">Recent Activity</h2>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-base-200 rounded">
                 <span>System migrated to Clerk authentication</span>
-                <span className="badge badge-success">Success</span>
+                <span className="badge badge-neutral">Success</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-base-200 rounded">
                 <span>Admin role-based access implemented</span>
-                <span className="badge badge-info">Info</span>
+                <span className="badge badge-neutral">Info</span>
               </div>
             </div>
           </div>

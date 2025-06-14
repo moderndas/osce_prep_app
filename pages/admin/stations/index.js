@@ -136,7 +136,7 @@ function AdminStations() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-xl font-bold text-foreground mb-4">Confirm Deletion</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight text-foreground mb-4">Confirm Deletion</h3>
             <p className="text-muted-foreground mb-6">
               Are you sure you want to delete this station? Users will no longer be able to access it. This action cannot be undone.
             </p>
@@ -148,7 +148,7 @@ function AdminStations() {
                 Cancel
               </button>
               <button 
-                className="btn bg-red-500 hover:bg-red-600 text-white border-none"
+                className="btn btn-error"
                 onClick={handleDelete}
                 disabled={deleteLoading === stationToDelete}
               >
@@ -162,11 +162,16 @@ function AdminStations() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-foreground">All Stations</h2>
-        <Link href="/admin/stations/new">
-          <button className="btn btn-primary">Create New Station</button>
-        </Link>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground">All Stations</h2>
+            <p className="text-muted-foreground">Manage all OSCE stations for users.</p>
+          </div>
+          <Link href="/admin/stations/new">
+            <button className="btn btn-primary">Create New Station</button>
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -185,7 +190,7 @@ function AdminStations() {
       ) : stations.length === 0 ? (
         <div className="bg-white border border-border rounded-lg shadow-sm">
           <div className="p-6 text-center">
-            <h3 className="text-xl font-semibold text-foreground">No Stations Created</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight text-foreground mb-4">No Stations Created</h3>
             <p className="mt-2 text-muted-foreground">Create your first OSCE station for users to practice with.</p>
             <div className="mt-6">
               <Link href="/admin/stations/new">
@@ -225,21 +230,18 @@ function AdminStations() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex gap-2">
+                    <div className="flex" style={{ gap: '48px' }}>
                       <button 
                         onClick={() => handleEdit(station._id)} 
-                        className="btn btn-sm btn-outline"
+                        className="btn btn-sm border border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         Edit
                       </button>
                       <button 
                         onClick={() => openDeleteModal(station._id)} 
-                        className="btn btn-sm btn-outline"
-                        disabled={deleteLoading === station._id}
+                        className="btn btn-sm border border-red-500 text-red-500 hover:bg-red-50"
                       >
-                        {deleteLoading === station._id ? (
-                          <span className="loading loading-spinner loading-xs"></span>
-                        ) : 'Delete'}
+                        Delete
                       </button>
                     </div>
                   </td>

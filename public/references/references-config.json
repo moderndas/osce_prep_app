@@ -1,0 +1,33 @@
+{
+  "68251d265d1726c4ada7f207": [
+    {
+      "name": "Headache Assessment Chart",
+      "file": "reference-1.pdf",
+      "index": 1
+    },
+    {
+      "name": "Treatment - Headache",
+      "file": "reference-2.pdf",
+      "index": 2
+    },
+    {
+      "name": "Tension Type Headache, Acute",
+      "file": "reference-3.pdf",
+      "index": 3
+    }
+  ],
+  "patientProfiles": {
+    "68251d265d1726c4ada7f207": {
+      "name": "Patient Profile",
+      "file": "patient-profile.pdf",
+      "type": "pdf"
+    }
+  },
+  "68251a67644eac0b4f6aeea1": [
+    {
+      "name": "Product Monograph - Cipralex",
+      "file": "reference-1.pdf",
+      "index": 1
+    }
+  ]
+}

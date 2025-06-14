@@ -56,7 +56,7 @@ export default function DashboardHome() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="card bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300">
           <div className="card-body">
-            <h2 className="card-title text-foreground">Practice OSCE</h2>
+            <h2 className="text-lg font-semibold text-warm-600">Practice OSCE</h2>
             <p className="text-muted-foreground">Start practicing with our collection of OSCE stations designed to improve your clinical skills.</p>
             <div className="card-actions justify-end mt-4">
               <button 
@@ -71,7 +71,7 @@ export default function DashboardHome() {
 
         <div className="card bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300">
           <div className="card-body">
-            <h2 className="card-title text-foreground">Recent Activity</h2>
+            <h2 className="text-lg font-semibold text-warm-600">Recent Activity</h2>
             <p className="text-muted-foreground">You haven't completed any stations yet.</p>
             <div className="card-actions justify-end mt-4">
               <button className="btn btn-ghost">View All</button>
@@ -81,7 +81,7 @@ export default function DashboardHome() {
 
         <div className="card bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300">
           <div className="card-body">
-            <h2 className="card-title text-foreground">Your Progress</h2>
+            <h2 className="text-lg font-semibold text-warm-600">Your Progress</h2>
             <p className="text-muted-foreground">Track your OSCE prep progress here.</p>
             <div className="mt-4">
               <div className="flex justify-between mb-1">

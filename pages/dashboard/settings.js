@@ -112,8 +112,8 @@ export default function SettingsPage() {
   return (
     <UserDashboardLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Settings</h2>
-        <p className="text-muted-foreground mt-2">Configure your account settings.</p>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground mb-4">Settings</h2>
+        <p className="text-muted-foreground">Configure your account settings.</p>
       </div>
       
       {message.text && (
@@ -135,7 +135,7 @@ export default function SettingsPage() {
           <div className="bg-white border border-border rounded-lg shadow-sm">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-foreground">Profile Settings</h3>
+                <h3 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight text-foreground mb-4">Profile Settings</h3>
                 <button 
                   type="button"
                   onClick={toggleEditing}

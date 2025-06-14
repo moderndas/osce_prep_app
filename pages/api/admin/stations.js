@@ -86,6 +86,7 @@ export default async function handler(req, res) {
       const {
         stationName,
         clinicalBackground,
+        difficulty,
         systemPrompt,
         analysisPrompt,
         personaId,
@@ -104,6 +105,7 @@ export default async function handler(req, res) {
       const station = await Station.create({
         stationName,
         clinicalBackground,
+        difficulty: difficulty || 'Medium',
         systemPrompt: systemPrompt || '',
         analysisPrompt: analysisPrompt || '',
         personaId: personaId || '',

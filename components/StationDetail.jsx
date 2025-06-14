@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
 import { AnamEvent } from '@anam-ai/js-sdk'
+import StationReferences from './StationReferences'
 
 // Hard-coded fallback system prompt if nothing is available from the station
 const FALLBACK_SYSTEM_PROMPT = `
@@ -62,9 +63,12 @@ export default function StationDetail({ station }) {
 
   // Add SDK cleanup tracking
   const cleanupDoneRef = useRef(false)
+  const cleanupListenersRef = useRef(null)
 
   // ─── Streaming Custom-Brain Reply ─────────────────────────────────────────────
   async function streamCustomBrainReply(history) {
+    console.log("🤖 streamCustomBrainReply called with history:", history);
+    
     // Use the station's systemPrompt, persona's prompt, or fallback
     const systemPrompt =
       station?.systemPrompt?.trim() ||
@@ -84,33 +88,49 @@ export default function StationDetail({ station }) {
 
     try {
       // 3) Get the response from OpenAI
-      const response = await fetch("/api/openai-chat", {
+      console.log("🔄 Making OpenAI API call...");
+      const response = await fetch("/api/openai-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from OpenAI');
+        throw new Error('Failed to get streaming response from OpenAI');
       }
 
-      const { reply } = await response.json();
+      // 4) Stream the response directly to Anam as tokens arrive
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // 4) Stream the reply to Anam
-      if (talkStream.isActive()) {
-        // Split the reply into chunks and stream them
-        const chunks = reply.match(/.{1,50}/g) || [reply];
-        for (let i = 0; i < chunks.length; i++) {
-          const isLastChunk = i === chunks.length - 1;
-          talkStream.streamMessageChunk(chunks[i], isLastChunk);
-          // Add a small delay between chunks for natural speech
-          if (!isLastChunk) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        // Send chunks when we have complete words/phrases
+        const words = buffer.split(' ');
+        if (words.length > 1) {
+          const readyText = words.slice(0, -1).join(' ') + ' ';
+          buffer = words[words.length - 1];
+          
+          if (talkStream.isActive() && readyText.trim()) {
+            talkStream.streamMessageChunk(readyText, false);
           }
         }
       }
+
+      // Send final chunk
+      if (buffer.trim() && talkStream.isActive()) {
+        talkStream.streamMessageChunk(buffer.trim(), true);
+      }
+      
+      console.log("✅ Finished streaming OpenAI response to Anam");
     } catch (error) {
-      console.error('Error in streamCustomBrainReply:', error);
+      console.error('❌ Error in streamCustomBrainReply:', error);
       throw error;
     }
   }
@@ -127,6 +147,26 @@ export default function StationDetail({ station }) {
         console.error('Error getting custom brain reply:', error);
         setError('Failed to get AI response. Please try again.');
       }
+    }
+  };
+
+  // ─── Handle User Utterance (for complete turns) ────────────────────────────
+  const handleUserUtterance = async (userText) => {
+    try {
+      // Get the current message history from Anam client
+      const currentHistory = anamClientRef.current?.getMessageHistory?.() || [];
+      
+      // If we have history, use it; otherwise build a simple history with the user text
+      if (currentHistory.length > 0) {
+        await streamCustomBrainReply(currentHistory);
+      } else {
+        // Fallback: create a minimal history with just this user message
+        const fallbackHistory = [{ role: 'user', content: userText }];
+        await streamCustomBrainReply(fallbackHistory);
+      }
+    } catch (error) {
+      console.error('❌ Error in handleUserUtterance:', error);
+      setError('Failed to get AI response. Please try again.');
     }
   };
 
@@ -228,26 +268,47 @@ export default function StationDetail({ station }) {
       setUserTurns([]);
       seenUserMsgIds.current = new Set();
 
-      // Consolidated message history listener
-      anamClient.addListener("MESSAGE_HISTORY_UPDATED", (history) => {
-        // 1) Capture any new user turns
-        history.forEach(msg => {
-          if (msg.role === 'user' && !seenUserMsgIds.current.has(msg.id)) {
-            seenUserMsgIds.current.add(msg.id);
-            console.log('Captured user turn:', msg.id, msg.text || msg.content);
-            setUserTurns(prev => [...prev, (msg.text||msg.content).trim()]);
-          }
-        });
-
-        // 2) If the last message is from user, stream the AI reply
-        const last = history[history.length - 1];
-        if (last.role === 'user') {
-          streamCustomBrainReply(history).catch(err => {
-            console.error('Stream error:', err);
-            setError('Failed to stream AI response.');
+      // Clean event listener setup with proper cleanup
+      const setupEventListeners = () => {
+        // 1️⃣ UI sync only
+        const onHistory = (history) => {
+          // Capture any new user turns for UI display
+          history.forEach(msg => {
+            if (msg.role === 'user' && !seenUserMsgIds.current.has(msg.id)) {
+              seenUserMsgIds.current.add(msg.id);
+              console.log('Captured user turn:', msg.id, msg.text || msg.content);
+              setUserTurns(prev => [...prev, (msg.text||msg.content).trim()]);
+            }
           });
-        }
-      });
+        };
+
+        // 2️⃣ Single-shot user turn & send
+        const onStream = (evt) => {
+          // Only process user events, ignore persona/assistant events
+          if (evt.role !== "user") return;
+          
+          console.log("MESSAGE_STREAM_EVENT_RECEIVED user event:", evt);
+          if (evt.endOfSpeech) {
+            const text = evt.text || evt.content;
+            console.log("✅ Full user turn received:", text);
+            handleUserUtterance(text.trim());
+          } else {
+            console.log("❌ User event rejected - endOfSpeech:", evt.endOfSpeech);
+          }
+        };
+
+        anamClient.addListener("MESSAGE_HISTORY_UPDATED", onHistory);
+        anamClient.addListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+
+        // Return cleanup function
+        return () => {
+          anamClient.removeListener("MESSAGE_HISTORY_UPDATED", onHistory);
+          anamClient.removeListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+        };
+      };
+
+      // Setup listeners and store cleanup function
+      cleanupListenersRef.current = setupEventListeners();
 
       // Listen for connection closed events
       anamClient.addListener(AnamEvent.CONNECTION_CLOSED, (reason) => {
@@ -330,6 +391,12 @@ export default function StationDetail({ station }) {
         console.log('Disposing Anam client...');
         
         try {
+          // Clean up event listeners first
+          if (cleanupListenersRef.current) {
+            cleanupListenersRef.current();
+            cleanupListenersRef.current = null;
+          }
+          
           // Try all possible cleanup methods
           if (typeof anamClientRef.current.stopStreaming === 'function') {
             await anamClientRef.current.stopStreaming();
@@ -614,7 +681,7 @@ export default function StationDetail({ station }) {
         }}
       />
 
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">{station.stationName}</h1>
@@ -624,83 +691,156 @@ export default function StationDetail({ station }) {
           </div>
           
           <div className="divider my-2"></div>
-          
-          <div className="bg-base-200 p-4 rounded-lg mb-4">
-            <h2 className="font-semibold mb-2">Clinical Background:</h2>
-            <p>{station.clinicalBackground}</p>
-          </div>
         </div>
         
-        <div className="flex justify-center gap-4 mb-4">
-          {!isSessionActive && !isAnalysisComplete && (
-            <button 
-              onClick={startSession}
-              disabled={isLoading || !isSdkReady}
-              className={`btn ${(isLoading || !isSdkReady) ? 'btn-disabled' : 'btn-primary'}`}
-            >
-              {isLoading ? 'Starting...' : !isSdkReady ? 'Loading SDK...' : 'Start Session'}
-            </button>
-          )}
-          
-          {isSessionActive && !isAnalysisComplete && (
-            <button 
-              onClick={handleSessionEnd}
-              disabled={isLoading}
-              className={`btn ${isLoading ? 'btn-disabled' : 'btn-error'}`}
-            >
-              {isLoading ? 'Analyzing...' : 'End Session'}
-            </button>
-          )}
-          
-          {isAnalysisComplete && (
-            <button
-              onClick={finalizeSessionEnd}
-              className="btn btn-primary"
-            >
-              Return to Stations
-            </button>
-          )}
-        </div>
-        
-        <div className="flex justify-center">
-          <div className="w-full max-w-4xl">
-            <div className="relative aspect-video bg-base-300 rounded-lg overflow-hidden mb-4">
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-base-300">
-                  <div className="loading loading-spinner loading-lg"></div>
-                </div>
+        {/* Main Content Grid - Left: Station, Right: References */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Side - Main Station Content */}
+          <div className="lg:col-span-2">
+            {/* Clinical Background - now inside left column */}
+            <div className="bg-base-200 p-4 rounded-lg mb-4">
+              <h2 className="font-semibold mb-2">Clinical Background:</h2>
+              <p>{station.clinicalBackground}</p>
+            </div>
+            
+            <div className="flex justify-center gap-4 mb-4">
+              {!isSessionActive && !isAnalysisComplete && (
+                <button 
+                  onClick={startSession}
+                  disabled={isLoading || !isSdkReady}
+                  className={`btn ${(isLoading || !isSdkReady) ? 'btn-disabled' : 'btn-primary'}`}
+                >
+                  {isLoading ? 'Starting...' : !isSdkReady ? 'Loading SDK...' : 'Start Session'}
+                </button>
               )}
-              {error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-base-300">
-                  <div className="text-error text-center p-4">{error}</div>
-                </div>
-              )}
-              <video
-                id="anamVideo"
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted
-              />
               
-              {/* Session ended overlay */}
+              {isSessionActive && !isAnalysisComplete && (
+                <button 
+                  onClick={handleSessionEnd}
+                  disabled={isLoading}
+                  className={`btn ${isLoading ? 'btn-disabled' : 'btn-error'}`}
+                >
+                  {isLoading ? 'Analyzing...' : 'End Session'}
+                </button>
+              )}
+              
               {isAnalysisComplete && (
-                <div className="absolute inset-0 bg-base-300 bg-opacity-50 flex items-center justify-center">
-                  <div className="bg-base-100 px-6 py-4 rounded-lg shadow-lg text-center">
-                    <h3 className="text-xl font-bold text-base-content">This OSCE station has ended</h3>
-                    <p className="mt-2 text-base-content/70">Your analysis is available below</p>
+                <button
+                  onClick={finalizeSessionEnd}
+                  className="btn btn-primary"
+                >
+                  Return to Stations
+                </button>
+              )}
+            </div>
+            
+            <div className="w-full">
+              <div className="relative aspect-video bg-base-300 rounded-lg overflow-hidden mb-4">
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-base-300">
+                    <div className="loading loading-spinner loading-lg"></div>
+                  </div>
+                )}
+                {error && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-base-300">
+                    <div className="text-error text-center p-4">{error}</div>
+                  </div>
+                )}
+                <video
+                  id="anamVideo"
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                
+                {/* Session ended overlay */}
+                {isAnalysisComplete && (
+                  <div className="absolute inset-0 bg-base-300 bg-opacity-50 flex items-center justify-center">
+                    <div className="bg-base-100 px-6 py-4 rounded-lg shadow-lg text-center">
+                      <h3 className="text-xl font-bold text-base-content">This OSCE station has ended</h3>
+                      <p className="mt-2 text-base-content/70">Your analysis is available below</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Timer display */}
+                {isSessionActive && !isAnalysisComplete && (
+                  <div className="fixed bottom-2 right-2 text-xs bg-base-300 bg-opacity-70 text-base-content px-2 py-1 rounded">
+                    {String(Math.floor(seconds/60)).padStart(2,'0')}:
+                    {String(seconds%60).padStart(2,'0')}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Analysis Section */}
+            {analysis && (
+              <div className="card bg-base-100 shadow-xl mt-8 overflow-hidden">
+                <div className="bg-primary text-primary-content p-4">
+                  <h2 className="card-title text-2xl font-bold">Performance Analysis</h2>
+                </div>
+                <div className="card-body">
+                  <div className="grid gap-6">
+                    {/* Analysis Result Section */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 text-base-content/80 border-b pb-2">
+                        OSCE Evaluation
+                      </h3>
+                      <div className="prose max-w-none">
+                        {analysis.split('\n').map((paragraph, index) => {
+                          // Check if this line contains a score or grade pattern
+                          const isScore = /grade|score|\d\/\d|[0-9]+\s*%|[0-9]+\s*points/i.test(paragraph);
+                          
+                          // Check if it looks like a heading (short, ends with colon)
+                          const isHeading = paragraph.length < 50 && paragraph.trim().endsWith(':');
+                          
+                          // If empty line, render a small gap
+                          if (!paragraph.trim()) {
+                            return <div key={index} className="my-2"></div>;
+                          }
+                          
+                          // Render different styles based on content type
+                          if (isScore) {
+                            return (
+                              <div key={index} className="bg-base-200 p-3 rounded-lg font-semibold text-lg my-2">
+                                {paragraph}
+                              </div>
+                            );
+                          } else if (isHeading) {
+                            return <h4 key={index} className="font-bold mt-4 mb-2">{paragraph}</h4>;
+                          } else {
+                            return <p key={index} className="my-2 text-base-content/90">{paragraph}</p>;
+                          }
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Tips Section */}
+                    <div className="bg-base-200 p-4 rounded-lg mt-4">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        Next Steps
+                      </h3>
+                      <p className="mt-2 text-sm">
+                        Review this feedback and practice areas that need improvement. 
+                        Remember that effective patient communication involves clear explanations, 
+                        active listening, and displaying empathy.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
-              
-              {/* Timer display */}
-              {isSessionActive && !isAnalysisComplete && (
-                <div className="fixed bottom-2 right-2 text-xs bg-base-300 bg-opacity-70 text-base-content px-2 py-1 rounded">
-                  {String(Math.floor(seconds/60)).padStart(2,'0')}:
-                  {String(seconds%60).padStart(2,'0')}
-                </div>
-              )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Side - References */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4">
+              <StationReferences stationId={station._id} />
             </div>
           </div>
         </div>
@@ -711,66 +851,6 @@ export default function StationDetail({ station }) {
           autoPlay
           className="hidden"
         />
-
-        {analysis && (
-          <div className="card bg-base-100 shadow-xl mt-8 overflow-hidden">
-            <div className="bg-primary text-primary-content p-4">
-              <h2 className="card-title text-2xl font-bold">Performance Analysis</h2>
-            </div>
-            <div className="card-body">
-              <div className="grid gap-6">
-                {/* Analysis Result Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-base-content/80 border-b pb-2">
-                    OSCE Evaluation
-                  </h3>
-                  <div className="prose max-w-none">
-                    {analysis.split('\n').map((paragraph, index) => {
-                      // Check if this line contains a score or grade pattern
-                      const isScore = /grade|score|\d\/\d|[0-9]+\s*%|[0-9]+\s*points/i.test(paragraph);
-                      
-                      // Check if it looks like a heading (short, ends with colon)
-                      const isHeading = paragraph.length < 50 && paragraph.trim().endsWith(':');
-                      
-                      // If empty line, render a small gap
-                      if (!paragraph.trim()) {
-                        return <div key={index} className="my-2"></div>;
-                      }
-                      
-                      // Render different styles based on content type
-                      if (isScore) {
-                        return (
-                          <div key={index} className="bg-base-200 p-3 rounded-lg font-semibold text-lg my-2">
-                            {paragraph}
-                          </div>
-                        );
-                      } else if (isHeading) {
-                        return <h4 key={index} className="font-bold mt-4 mb-2">{paragraph}</h4>;
-                      } else {
-                        return <p key={index} className="my-2 text-base-content/90">{paragraph}</p>;
-                      }
-                    })}
-                  </div>
-                </div>
-                
-                {/* Tips Section */}
-                <div className="bg-base-200 p-4 rounded-lg mt-4">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    Next Steps
-                  </h3>
-                  <p className="mt-2 text-sm">
-                    Review this feedback and practice areas that need improvement. 
-                    Remember that effective patient communication involves clear explanations, 
-                    active listening, and displaying empathy.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

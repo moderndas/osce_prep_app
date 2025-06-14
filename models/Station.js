@@ -10,6 +10,12 @@ const StationSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Clinical background is required'],
   },
+  difficulty: {
+    type: String,
+    enum: ['Low', 'Medium', 'High'],
+    default: 'Medium',
+    description: 'Difficulty level of the station'
+  },
   systemPrompt: {
     type: String,
     required: false,

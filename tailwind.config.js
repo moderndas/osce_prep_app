@@ -63,6 +63,12 @@ module.exports = {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
         },
+        warm: {
+          50: "hsl(var(--warm-50))",
+          100: "hsl(var(--warm-100))",
+          500: "hsl(var(--warm-500))",
+          600: "hsl(var(--warm-600))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

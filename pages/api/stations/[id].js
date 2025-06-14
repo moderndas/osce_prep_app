@@ -70,7 +70,8 @@ export default async function handler(req, res) {
         // Get data from request body
         const { 
           stationName, 
-          clinicalBackground, 
+          clinicalBackground,
+          difficulty,
           systemPrompt, 
           analysisPrompt, 
           personaId,
@@ -91,6 +92,7 @@ export default async function handler(req, res) {
           {
             stationName,
             clinicalBackground,
+            difficulty: difficulty || 'Medium',
             systemPrompt,
             analysisPrompt,
             personaId: personaId || '',

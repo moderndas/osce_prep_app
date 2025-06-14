@@ -5,24 +5,32 @@ import UserDashboardLayout from '../../components/UserDashboardLayout';
 // FAQ data
 const faqs = [
   {
-    question: "What is an OSCE?",
-    answer: "An Objective Structured Clinical Examination (OSCE) is a modern type of examination often used in health sciences. It is designed to test clinical skill performance and competence in skills such as communication, clinical examination, medical procedures, prescription, and interpretation of results."
+    question: "How to Start session for OSCE station?",
+    answer: "Follow the steps: Click on Practice Now > it will open a popup message as Heads Up > Takes you to Station page > click on Start session > Patient will appear on screen > User can start talking now."
   },
   {
-    question: "How does the OSCE Prep app work?",
-    answer: "OSCE Prep app allows you to create your own OSCE stations, practice with them, and receive AI-powered feedback on your performance. You can also track your progress over time."
+    question: "How to end session for OSCE station?",
+    answer: "After session starts > User will talk to patient as usual. When the station is finished, User can click End session button if they wish to end early. If they don't, the station will end Automatically after 7 minutes."
   },
   {
-    question: "How many stations can I create?",
-    answer: "Free users can create up to 5 OSCE stations. Premium subscribers have unlimited station creation."
+    question: "What are some important Tips for a successful session?",
+    answer: "Here are some important tips: 1) Once you say your line, wait about 1-2 seconds for the AI Actor to process and respond back to you. 2) If you do not understand what AI Actor said, ask your question again. They will respond. 3) Do not close the browser tab, do not click Back icon or do not reload the page. All these actions will kill session and ruin your experience."
   },
   {
-    question: "How is my performance evaluated?",
-    answer: "Your performance is evaluated using AI that analyzes your responses against the expected answers you provide when creating the station."
+    question: "What if I want to stop the station in the middle and start over?",
+    answer: "Simply click on END SESSION button and it will take you back to dashboard. From there, you can restart your session."
   },
   {
-    question: "Can I use this for any medical specialty?",
-    answer: "Yes, you can create stations for any medical specialty or topic you're studying."
+    question: "How do I know OSCE station is about to end?",
+    answer: "We automatically fire up a timer when you start a session. After 5 minutes, a soft whistle will sound to alert you that 2 minutes are left in this station."
+  },
+  {
+    question: "Do I need a timer to practice OSCE station?",
+    answer: "Absolutely not. We keep track of your time and will notify you. You focus on your performance."
+  },
+  {
+    question: "Do you provide required References to solve OSCE station?",
+    answer: "Yes. Just like OSCE exam, you will know in advance what references are needed for a particular station. Plus You will also see the LINKS and PDFs of references on your SCREEN. Feel free to click them. They will open in a NEW TAB in your browser. Refer as needed."
   }
 ];
 
@@ -50,42 +58,29 @@ export default function DashboardFAQPage() {
   return (
     <UserDashboardLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Frequently Asked Questions</h2>
-        <p className="text-muted-foreground mt-2">Find answers to common questions about OSCE Prep.</p>
+        <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
+        <p className="text-base-content/70 mt-2">Find answers to common questions about OSCE Help.</p>
       </div>
       
-      <div className="space-y-4">
+      <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100">
         {faqs.map((faq, index) => (
-          <details 
-            key={index} 
-            className="border border-gray-300 rounded-lg bg-white shadow-sm"
-            open={index === 0}
-          >
-            <summary className="px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 text-lg font-medium text-gray-900 list-none">
-              <div className="flex justify-between items-center">
-                <span>{faq.question}</span>
-                <svg 
-                  className="w-5 h-5 text-gray-600 transition-transform duration-200 details-arrow" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </summary>
-            <div className="px-6 pb-4 pt-2 border-t border-gray-200">
-              <p className="text-gray-700 leading-relaxed">{faq.answer}</p>
+          <div key={index} className={`collapse collapse-arrow ${index !== 0 ? 'border-t border-base-300' : ''}`}>
+            <input type="radio" name="faq-accordion" defaultChecked={index === 0} />
+            <div className="collapse-title text-lg font-medium">
+              {faq.question}
             </div>
-          </details>
+            <div className="collapse-content">
+              <p className="text-base-content/70">{faq.answer}</p>
+            </div>
+          </div>
         ))}
       </div>
       
-      <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Still have questions?</h3>
-        <p className="mt-2 text-gray-600">If you couldn't find the answer to your question, feel free to contact us.</p>
+      <div className="mt-8 bg-base-200 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-4">Still have questions?</h3>
+        <p className="mt-2 text-base-content/70">If you couldn't find the answer to your question, feel free to contact us.</p>
         <div className="mt-4">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
+          <button className="btn btn-primary">
             Contact Support
           </button>
         </div>

@@ -153,8 +153,8 @@ export default function SubscriptionPage() {
 
   return (
     <UserDashboardLayout>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-foreground">Choose the right plan for your OSCE preparation needs.</h2>
+      <div className="mb-6">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground mb-4">Choose the right plan for your OSCE preparation needs.</h2>
         
         {message.text && (
           <div className={`alert ${message.type === 'success' ? 'alert-success' : message.type === 'info' ? 'alert-info' : 'alert-error'} mt-4`}>
@@ -169,7 +169,7 @@ export default function SubscriptionPage() {
           <div className="bg-white border border-border rounded-lg shadow-sm p-6 mt-6">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-foreground">Active Subscription</h3>
+                <h3 className="text-xl sm:text-2xl font-semibold leading-none tracking-tight text-foreground mb-4">Active Subscription</h3>
                 <div className="text-muted-foreground mt-1">
                   You are currently on the {userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1)} plan.
                 </div>
