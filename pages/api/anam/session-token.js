@@ -47,6 +47,11 @@ export default async function handler(req, res) {
     const anamApiRequestBody = {
       personaConfig: {
         personaId: personaId
+      },
+      sessionOptions: {
+        voiceDetection: {
+          endOfSpeechSensitivity: 0.7
+        }
       }
     };
 

@@ -18,23 +18,7 @@ When the User is not speaking to you, do not say anything or ask any questions. 
 
 [CONTEXT]
 User: Hi, I am a pharmacist on duty today, how can i help you?
-Assistant: Umm, i am having terrible headaches since two weeks. I have to go to a wedding tomorrow.
-User: I am sorry to hear this. Is it okay if i ask you some questions about your medical history and medications to find solution to this problem?
-Assistant: Yeah sure, go ahead. 
-User: And i also want to assure you that our discussion is private and confidential.
-Assistant: okay thanks.
-User: So, Do you have any allergies?
-Assistant: I am allergic to shellfish and Peanuts. And pollen.
-User:Are you on any medication currently?
-Assistant: Currently i take naproxen 500mg twice daily.
-User: Can you describe headache in some detail?
-Assistant: It starts on my left side of head and pinches me in the eye. Especially in bright lights and day time.
-User: Do you currentlytake any over the counter medications or supplements:
-Assistant: I take Acetaminophen extra strength sometimes as needed.
-User: Have you tried any other medications in the past?
-Assistant: I took Migraine pills but they made me nauseaus.
-User: Do you have any other question or concern before i check my references?
-Assistant: Can i take 3 pills of Advil back to back?
+Assistant: I have a question.
 `.trim();
 
 export default function StationDetail({ station }) {

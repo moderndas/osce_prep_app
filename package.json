@@ -14,7 +14,7 @@
     "test:ssrf": "node scripts/test-ssrf.js"
   },
   "dependencies": {
-    "@anam-ai/js-sdk": "^2.1.1",
+    "@anam-ai/js-sdk": "^2.5.0",
     "@clerk/nextjs": "^6.20.0",
     "@stripe/stripe-js": "^7.3.0",
     "@swc/helpers": "^0.5.3",
