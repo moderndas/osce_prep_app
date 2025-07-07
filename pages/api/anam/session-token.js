@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       },
       sessionOptions: {
         voiceDetection: {
-          endOfSpeechSensitivity: 0.7
+          endOfSpeechSensitivity: 0.3
         }
       }
     };
