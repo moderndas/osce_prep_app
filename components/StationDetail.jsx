@@ -4,8 +4,9 @@ import Script from 'next/script'
 import { useRouter } from 'next/router'
 import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
-import { AnamEvent } from '@anam-ai/js-sdk'
+
 import StationReferences from './StationReferences'
+import { AnamEvent } from "@anam-ai/js-sdk/dist/module/types";
 
 // Hard-coded fallback system prompt if nothing is available from the station
 const FALLBACK_SYSTEM_PROMPT = `
@@ -48,11 +49,10 @@ export default function StationDetail({ station }) {
   // Add SDK cleanup tracking
   const cleanupDoneRef = useRef(false)
   const cleanupListenersRef = useRef(null)
+  const currentTalkStreamRef = useRef(null)
 
   // ─── Streaming Custom-Brain Reply ─────────────────────────────────────────────
   async function streamCustomBrainReply(history) {
-    console.log("🤖 streamCustomBrainReply called with history:", history);
-    
     // Use the station's systemPrompt, persona's prompt, or fallback
     const systemPrompt =
       station?.systemPrompt?.trim() ||
@@ -67,8 +67,12 @@ export default function StationDetail({ station }) {
         .map(m => ({ role: m.role, content: (m.text || m.content).trim() }))
     ];
 
-    // 2) Open Anam's TTS stream
-    const talkStream = anamClientRef.current.createTalkMessageStream();
+    // 2) Open Anam's TTS stream with correlation ID for tracking
+    const correlationId = `talk-stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const talkStream = anamClientRef.current.createTalkMessageStream(correlationId);
+    
+    // Track this stream for interruption handling
+    currentTalkStreamRef.current = talkStream;
 
     try {
       // 3) Get the response from OpenAI
@@ -101,14 +105,15 @@ export default function StationDetail({ station }) {
           const readyText = words.slice(0, -1).join(' ') + ' ';
           buffer = words[words.length - 1];
           
-          if (talkStream.isActive() && readyText.trim()) {
+          // Check if this stream is still the current one and is active
+          if (currentTalkStreamRef.current === talkStream && talkStream.isActive() && readyText.trim()) {
             talkStream.streamMessageChunk(readyText, false);
           }
         }
       }
 
       // Send final chunk
-      if (buffer.trim() && talkStream.isActive()) {
+      if (buffer.trim() && currentTalkStreamRef.current === talkStream && talkStream.isActive()) {
         talkStream.streamMessageChunk(buffer.trim(), true);
       }
       
@@ -116,12 +121,22 @@ export default function StationDetail({ station }) {
     } catch (error) {
       console.error('❌ Error in streamCustomBrainReply:', error);
       throw error;
+    } finally {
+      // Properly close the talk stream regardless of success or error
+      if (talkStream.isActive()) {
+        console.log(`🔚 Closing talk stream with correlationId: ${correlationId}`);
+        talkStream.endMessage();
+      }
+      
+      // Clear the current stream reference if this was the current one
+      if (currentTalkStreamRef.current === talkStream) {
+        currentTalkStreamRef.current = null;
+      }
     }
   }
 
   // ─── Message History Handler ───────────────────────────────────────────────
   const handleMessageHistory = async (messages) => {
-    console.log('Message History Payload:', JSON.stringify(messages, null, 2));
     const last = messages[messages.length - 1];
     if (last.role === 'user') {
       try {
@@ -134,25 +149,6 @@ export default function StationDetail({ station }) {
     }
   };
 
-  // ─── Handle User Utterance (for complete turns) ────────────────────────────
-  const handleUserUtterance = async (userText) => {
-    try {
-      // Get the current message history from Anam client
-      const currentHistory = anamClientRef.current?.getMessageHistory?.() || [];
-      
-      // If we have history, use it; otherwise build a simple history with the user text
-      if (currentHistory.length > 0) {
-        await streamCustomBrainReply(currentHistory);
-      } else {
-        // Fallback: create a minimal history with just this user message
-        const fallbackHistory = [{ role: 'user', content: userText }];
-        await streamCustomBrainReply(fallbackHistory);
-      }
-    } catch (error) {
-      console.error('❌ Error in handleUserUtterance:', error);
-      setError('Failed to get AI response. Please try again.');
-    }
-  };
 
   const getSessionToken = async () => {
     try {
@@ -241,10 +237,17 @@ export default function StationDetail({ station }) {
         setIsSessionActive(false);
       });
 
-      // Start the stream with proper element references
+      // 1) Grab the user’s mic stream so the SDK can listen and interrupt
+      let userInputStream;
+      try {
+        userInputStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        console.warn("Mic permission denied or unavailable:", err);
+      }
       if (!isStreaming.current && !anamClient.isStreaming()) {
         isStreaming.current = true;
-        await anamClient.streamToVideoAndAudioElements("anamVideo", "anamAudio");
+        // 2) Wire up both video *and* mic‐input so TALK_STREAM_INTERRUPTED fires
+        await anamClient.streamToVideoElement("anamVideo", userInputStream);
       }
       console.log('Anam stream started successfully');
 
@@ -254,40 +257,38 @@ export default function StationDetail({ station }) {
 
       // Clean event listener setup with proper cleanup
       const setupEventListeners = () => {
-        // 1️⃣ UI sync only
+        // Single handler for custom LLM integration (following docs pattern)
         const onHistory = (history) => {
           // Capture any new user turns for UI display
           history.forEach(msg => {
             if (msg.role === 'user' && !seenUserMsgIds.current.has(msg.id)) {
               seenUserMsgIds.current.add(msg.id);
-              console.log('Captured user turn:', msg.id, msg.text || msg.content);
+              console.log('✅ Full user turn received:', msg.id, msg.text || msg.content);
               setUserTurns(prev => [...prev, (msg.text||msg.content).trim()]);
             }
           });
+          
+          // Call handleMessageHistory to process the history and generate AI responses
+          handleMessageHistory(history);
         };
 
-        // 2️⃣ Single-shot user turn & send
-        const onStream = (evt) => {
-          // Only process user events, ignore persona/assistant events
-          if (evt.role !== "user") return;
+        const onTalkStreamInterrupted = (event) => {
+          console.log("user interrupted stream");
           
-          console.log("MESSAGE_STREAM_EVENT_RECEIVED user event:", evt);
-          if (evt.endOfSpeech) {
-            const text = evt.text || evt.content;
-            console.log("✅ Full user turn received:", text);
-            handleUserUtterance(text.trim());
-          } else {
-            console.log("❌ User event rejected - endOfSpeech:", evt.endOfSpeech);
+          // Mark the current stream as unusable by clearing the reference
+          // This prevents any ongoing streaming operations from continuing
+          if (currentTalkStreamRef.current) {
+            currentTalkStreamRef.current = null;
           }
         };
 
-        anamClient.addListener("MESSAGE_HISTORY_UPDATED", onHistory);
-        anamClient.addListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+        anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onHistory);
+        anamClient.addListener(AnamEvent.TALK_STREAM_INTERRUPTED, onTalkStreamInterrupted);
 
         // Return cleanup function
         return () => {
-          anamClient.removeListener("MESSAGE_HISTORY_UPDATED", onHistory);
-          anamClient.removeListener("MESSAGE_STREAM_EVENT_RECEIVED", onStream);
+          anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onHistory);
+          anamClient.removeListener(AnamEvent.TALK_STREAM_INTERRUPTED, onTalkStreamInterrupted);
         };
       };
 
@@ -295,7 +296,7 @@ export default function StationDetail({ station }) {
       cleanupListenersRef.current = setupEventListeners();
 
       // Listen for connection closed events
-      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, (reason) => {
+      anamClient.addListener("CONNECTION_CLOSED", (reason) => {
         console.log('Anam session closed:', reason);
         // Freeze UI or transition to "ended" state
         setIsSessionActive(false);
@@ -653,7 +654,7 @@ export default function StationDetail({ station }) {
   return (
     <>
       <Script 
-        src="https://unpkg.com/@anam-ai/js-sdk@2.0.0/dist/umd/anam.js"
+        src="https://unpkg.com/@anam-ai/js-sdk@2.5.0/dist/umd/anam.js"
         strategy="afterInteractive"
         onLoad={() => {
           console.log('Anam SDK loaded via Script component');
@@ -736,7 +737,6 @@ export default function StationDetail({ station }) {
                   className="w-full h-full object-cover"
                   autoPlay
                   playsInline
-                  muted
                 />
                 
                 {/* Session ended overlay */}

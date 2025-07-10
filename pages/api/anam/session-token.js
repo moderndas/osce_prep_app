@@ -50,9 +50,11 @@ export default async function handler(req, res) {
       },
       sessionOptions: {
         voiceDetection: {
-          endOfSpeechSensitivity: 0.7
+          endOfSpeechSensitivity: 0.3
         }
-      }
+      },
+      // This disables Anam's default brain and enables custom LLM integration
+      brainType: "CUSTOMER_CLIENT_V1"
     };
 
     console.log(`[ANAM_DEBUG] Preparing to call Anam for session token. URL: ${anamSessionTokenUrl}`);
