@@ -328,7 +328,7 @@ export default function Home() {
             </div>
             
             <div className="mt-16 max-w-4xl mx-auto">
-              <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100">
+              <div className="border border-base-300 rounded-lg overflow-hidden bg-green-500">
                 {faqs.map((faq, index) => (
                   <div key={index} className={`collapse collapse-arrow ${index !== 0 ? 'border-t border-base-300' : ''}`}>
                     <input type="radio" name="landing-faq-accordion" defaultChecked={index === 0} />
