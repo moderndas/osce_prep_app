@@ -332,7 +332,7 @@ export default function Home() {
                 {faqs.map((faq, index) => (
                   <div key={index} className={`collapse collapse-arrow ${index !== 0 ? 'border-t border-base-300' : ''}`}>
                     <input type="radio" name="landing-faq-accordion" defaultChecked={index === 0} />
-                    <div className="collapse-title text-lg font-medium">
+                    <div className="collapse-title text-lg font-medium text-neutral-900">
                       {faq.question}
                     </div>
                     <div className="collapse-content">
