@@ -10,6 +10,11 @@ export default function Home() {
   const router = useRouter();
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [openFAQ, setOpenFAQ] = useState(null);
+  
+  const toggleFAQ = (index) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
   
   const faqs = [
     {
@@ -330,14 +335,35 @@ export default function Home() {
             <div className="mt-16 max-w-4xl mx-auto">
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
-                  <div key={index} className="border border-base-300 rounded-lg bg-base-100">
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold text-base-content mb-3">
+                  <div key={index} className="border border-base-300 rounded-lg bg-base-100 overflow-hidden">
+                    <button
+                      onClick={() => toggleFAQ(index)}
+                      className="w-full p-6 text-left flex justify-between items-center hover:bg-base-200 transition-colors"
+                    >
+                      <h3 className="text-lg font-semibold text-base-content">
                         {faq.question}
                       </h3>
-                      <p className="text-base-content/70 leading-relaxed">
-                        {faq.answer}
-                      </p>
+                      <svg
+                        className={`w-5 h-5 text-base-content/60 transition-transform ${
+                          openFAQ === index ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        openFAQ === index ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <div className="px-6 pb-6">
+                        <p className="text-base-content/70 leading-relaxed">
+                          {faq.answer}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
