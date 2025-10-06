@@ -328,15 +328,16 @@ export default function Home() {
             </div>
             
             <div className="mt-16 max-w-4xl mx-auto">
-              <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100">
+              <div className="space-y-4">
                 {faqs.map((faq, index) => (
-                  <div key={index} className={`collapse collapse-arrow ${index !== 0 ? 'border-t border-base-300' : ''}`}>
-                    <input type="radio" name="landing-faq-accordion" />
-                    <div className="collapse-title text-lg font-medium">
-                      {faq.question}
-                    </div>
-                    <div className="collapse-content">
-                      <p className="text-base-content/70">{faq.answer}</p>
+                  <div key={index} className="border border-base-300 rounded-lg bg-base-100">
+                    <div className="p-6">
+                      <h3 className="text-lg font-semibold text-base-content mb-3">
+                        {faq.question}
+                      </h3>
+                      <p className="text-base-content/70 leading-relaxed">
+                        {faq.answer}
+                      </p>
                     </div>
                   </div>
                 ))}
