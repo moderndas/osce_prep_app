@@ -336,7 +336,7 @@ export default function Home() {
                       {faq.question}
                     </div>
                     <div className="collapse-content">
-                      <p className="text-base-content/70">{faq.answer}</p>
+                      <p className="text-neutral-700">{faq.answer}</p>
                     </div>
                   </div>
                 ))}
