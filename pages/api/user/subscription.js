@@ -1,42 +1,34 @@
-import { requireAuth } from '../../../lib/auth-clerk';
-import dbConnect from '../../../lib/db';
-import User from '../../../models/User';
-import Subscription from '../../../models/Subscription';
+// pages/api/user/subscription.js
+import { requireAuth } from "../../../lib/auth-clerk";
+import dbConnect from "../../../lib/db";
+import User from "../../../models/User";
+
+const TRIAL_CAP_SECONDS = 120;
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const auth = await requireAuth(req, res);
-    if (!auth) return; // requireAuth already sends error response
+    if (!auth) return;
 
     await dbConnect();
-    
-    // User is already available from requireAuth
-    const user = auth.user;
-    
-    // Get subscription details if active
-    let subscriptionDetails = null;
-    if (user.subscriptionStatus === 'active') {
-      subscriptionDetails = await Subscription.findOne({ 
-        userId: user._id,
-        status: 'active' 
-      });
-    }
-    
+
+    const user = await User.findById(auth.user._id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const used = Math.min(TRIAL_CAP_SECONDS, user.trialSecondsUsed || 0);
+    const trialSecondsRemaining = Math.max(0, TRIAL_CAP_SECONDS - used);
+
     return res.status(200).json({
-      subscriptionStatus: user.subscriptionStatus,
-      subscriptionPlan: user.subscriptionPlan,
-      subscription: subscriptionDetails ? {
-        currentPeriodEnd: subscriptionDetails.currentPeriodEnd,
-        cancelAtPeriodEnd: subscriptionDetails.cancelAtPeriodEnd
-      } : null
+      restricted: !!user.restricted,
+      stationsBalance: user.stationsBalance || 0,
+      trialSecondsRemaining,
     });
-    
-  } catch (error) {
-    console.error('Error fetching subscription:', error);
-    return res.status(500).json({ error: 'Failed to fetch subscription data', message: error.message });
+  } catch (e) {
+    console.error("subscription access error:", e);
+    return res.status(500).json({ error: "Server error", message: e.message });
   }
-} 
+}

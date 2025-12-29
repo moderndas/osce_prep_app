@@ -1,20 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import { useUser } from '@clerk/nextjs';
-import AdminDashboardLayout from '../../../../components/AdminDashboardLayout';
+// pages/admin/stations/[id]/edit.js
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { useUser } from "@clerk/nextjs";
+import AdminDashboardLayout from "../../../../components/AdminDashboardLayout";
 
 function EditStationPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const { id } = router.query;
-  
-  const [title, setTitle] = useState('');
-  const [intro, setIntro] = useState('');
+
+  const [title, setTitle] = useState("");
+  const [intro, setIntro] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [difficulty, setDifficulty] = useState('Medium');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [analysisPrompt, setAnalysisPrompt] = useState('');
-  const [personaId, setPersonaId] = useState('');
+  const [difficulty, setDifficulty] = useState("Medium");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [analysisPrompt, setAnalysisPrompt] = useState("");
+  const [heygenAvatarName, setHeygenAvatarName] = useState("");
+
+  // ✅ 5-minute interrupt question (admin editable)
+  const [fiveMinuteQuestion, setFiveMinuteQuestion] = useState("");
+
+  // ✅ Future-proof rules (optional)
+  const [showFiveMinuteAdvanced, setShowFiveMinuteAdvanced] = useState(false);
+  const [fiveMinuteDefaultNextIntentType, setFiveMinuteDefaultNextIntentType] =
+    useState("confirm");
+  const [fiveMinuteCounterKeywordsText, setFiveMinuteCounterKeywordsText] =
+    useState("");
+
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,33 +36,33 @@ function EditStationPage() {
   // Reference management states
   const [existingReferences, setExistingReferences] = useState([]);
   const [referenceFiles, setReferenceFiles] = useState([null, null, null]);
-  const [referenceNames, setReferenceNames] = useState(['', '', '']);
+  const [referenceNames, setReferenceNames] = useState(["", "", ""]);
   const [uploadingReferences, setUploadingReferences] = useState(false);
 
   // Patient profile management states
   const [existingPatientProfile, setExistingPatientProfile] = useState(null);
   const [patientProfileFile, setPatientProfileFile] = useState(null);
-  const [patientProfileName, setPatientProfileName] = useState('');
+  const [patientProfileName, setPatientProfileName] = useState("");
 
   // Check admin status
   useEffect(() => {
     if (isLoaded && isSignedIn && user) {
       const checkAdminStatus = async () => {
         try {
-          const response = await fetch('/api/admin/check', {
-            credentials: 'include'
+          const response = await fetch("/api/admin/check", {
+            credentials: "include",
           });
-          
+
           if (response.ok) {
             setIsAdmin(true);
           } else {
             setIsAdmin(false);
-            router.push('/dashboard');
+            router.push("/dashboard");
           }
         } catch (err) {
-          console.error('Error checking admin status:', err);
+          console.error("Error checking admin status:", err);
           setIsAdmin(false);
-          router.push('/dashboard');
+          router.push("/dashboard");
         } finally {
           setAuthLoading(false);
         }
@@ -58,7 +70,7 @@ function EditStationPage() {
 
       checkAdminStatus();
     } else if (isLoaded && !isSignedIn) {
-      router.push('/auth/signin');
+      router.push("/auth/signin");
     }
   }, [isLoaded, isSignedIn, user, router]);
 
@@ -73,36 +85,52 @@ function EditStationPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch station');
+          throw new Error(data.message || "Failed to fetch station");
         }
 
         const station = data.data;
-        setTitle(station.stationName || '');
-        setIntro(station.clinicalBackground || '');
-        setDifficulty(station.difficulty || 'Medium');
-        setSystemPrompt(station.systemPrompt || '');
-        setAnalysisPrompt(station.analysisPrompt || '');
-        setPersonaId(station.personaId || '');
+
+        setTitle(station.stationName || "");
+        setIntro(station.clinicalBackground || "");
+        setDifficulty(station.difficulty || "Medium");
+        setSystemPrompt(station.systemPrompt || "");
+        setAnalysisPrompt(station.analysisPrompt || "");
         setIsPublic(station.isPublic !== false);
-        
-        // Load existing references
+
+        // ✅ load avatar name from DB
+        setHeygenAvatarName(station.heygenAvatarName || "");
+
+        // ✅ load 5-min question from DB
+        setFiveMinuteQuestion(station.fiveMinuteQuestion || "");
+
+        // ✅ load 5-min rules from DB (safe defaults)
+        const rules = station.fiveMinuteRules || {};
+        setFiveMinuteDefaultNextIntentType(
+          rules.defaultNextIntentType || "confirm"
+        );
+        setFiveMinuteCounterKeywordsText(
+          Array.isArray(rules.counterQuestionKeywords)
+            ? rules.counterQuestionKeywords.join(", ")
+            : ""
+        );
+
+        // Load existing references + patient profile
         try {
-          const refResponse = await fetch('/references/references-config.json');
+          const refResponse = await fetch("/references/references-config.json");
           if (refResponse.ok) {
             const refData = await refResponse.json();
             const stationRefs = refData[id] || [];
             setExistingReferences(stationRefs);
-            
-            // Load existing patient profile
+
             const stationProfile = refData.patientProfiles?.[id] || null;
             setExistingPatientProfile(stationProfile);
           }
-        } catch (refErr) {
-          console.log('No existing references or patient profile found');
+        } catch {
+          // ignore
         }
       } catch (err) {
-        console.error('Error fetching station:', err);
-        setError('Failed to load station data. ' + err.message);
+        console.error("Error fetching station:", err);
+        setError("Failed to load station data. " + err.message);
       } finally {
         setLoading(false);
       }
@@ -124,9 +152,7 @@ function EditStationPage() {
   }
 
   // Don't render anything if not admin (will redirect)
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAdmin) return null;
 
   // Reference upload handlers
   const handleFileChange = (index, file) => {
@@ -145,41 +171,42 @@ function EditStationPage() {
     const newFiles = [...referenceFiles];
     const newNames = [...referenceNames];
     newFiles[index] = null;
-    newNames[index] = '';
+    newNames[index] = "";
     setReferenceFiles(newFiles);
     setReferenceNames(newNames);
   };
 
   const deleteExistingReference = async (referenceIndex) => {
     try {
-      const response = await fetch('/api/admin/delete-reference', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/delete-reference", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stationId: id,
-          referenceIndex: referenceIndex
+          referenceIndex: referenceIndex,
         }),
       });
 
       if (response.ok) {
-        // Remove from existing references
-        setExistingReferences(prev => prev.filter(ref => ref.index !== referenceIndex));
+        setExistingReferences((prev) =>
+          prev.filter((ref) => ref.index !== referenceIndex)
+        );
       } else {
-        throw new Error('Failed to delete reference');
+        throw new Error("Failed to delete reference");
       }
     } catch (error) {
-      console.error('Error deleting reference:', error);
-      setError('Failed to delete reference');
+      console.error("Error deleting reference:", error);
+      setError("Failed to delete reference");
     }
   };
 
   const uploadReferences = async () => {
     const formData = new FormData();
-    formData.append('stationId', id);
-    
+    formData.append("stationId", id);
+
     let hasReferences = false;
     const uploadedIndices = [];
-    
+
     for (let i = 0; i < 3; i++) {
       if (referenceFiles[i] && referenceNames[i].trim()) {
         formData.append(`reference${i}`, referenceFiles[i]);
@@ -188,55 +215,50 @@ function EditStationPage() {
         uploadedIndices.push(i);
       }
     }
-    
-    // Add patient profile if provided
+
     let hasPatientProfile = false;
     if (patientProfileFile && patientProfileName.trim()) {
-      formData.append('patientProfile', patientProfileFile);
-      formData.append('patientProfileName', patientProfileName.trim());
+      formData.append("patientProfile", patientProfileFile);
+      formData.append("patientProfileName", patientProfileName.trim());
       hasPatientProfile = true;
     }
-    
-    if (!hasReferences && !hasPatientProfile) return true; // Nothing to upload
-    
+
+    if (!hasReferences && !hasPatientProfile) return true;
+
     setUploadingReferences(true);
     try {
-      const response = await fetch('/api/admin/upload-references', {
-        method: 'POST',
+      const response = await fetch("/api/admin/upload-references", {
+        method: "POST",
         body: formData,
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
-        // Update existing references with the complete list from server
         setExistingReferences(result.references || []);
-        
-        // Update existing patient profile if uploaded
-        if (result.patientProfile) {
+        if (result.patientProfile)
           setExistingPatientProfile(result.patientProfile);
-        }
-        
-        // Clear the uploaded form fields
+
+        // clear uploaded reference inputs
         const newFiles = [...referenceFiles];
         const newNames = [...referenceNames];
-        uploadedIndices.forEach(index => {
-          newFiles[index] = null;
-          newNames[index] = '';
+        uploadedIndices.forEach((idx) => {
+          newFiles[idx] = null;
+          newNames[idx] = "";
         });
         setReferenceFiles(newFiles);
         setReferenceNames(newNames);
-        
-        // Clear patient profile if uploaded
+
+        // clear patient profile inputs
         if (hasPatientProfile) {
           setPatientProfileFile(null);
-          setPatientProfileName('');
+          setPatientProfileName("");
         }
       }
-      
+
       return result.success;
     } catch (error) {
-      console.error('Reference upload error:', error);
+      console.error("Reference upload error:", error);
       return false;
     } finally {
       setUploadingReferences(false);
@@ -244,38 +266,32 @@ function EditStationPage() {
   };
 
   // Patient profile handlers
-  const handlePatientProfileFileChange = (file) => {
-    setPatientProfileFile(file);
-  };
-
-  const handlePatientProfileNameChange = (name) => {
-    setPatientProfileName(name);
-  };
-
+  const handlePatientProfileFileChange = (file) => setPatientProfileFile(file);
+  const handlePatientProfileNameChange = (name) => setPatientProfileName(name);
   const removePatientProfile = () => {
     setPatientProfileFile(null);
-    setPatientProfileName('');
+    setPatientProfileName("");
   };
 
   const deleteExistingPatientProfile = async () => {
     try {
-      const response = await fetch('/api/admin/delete-reference', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/delete-reference", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stationId: id,
-          deletePatientProfile: true
+          deletePatientProfile: true,
         }),
       });
 
       if (response.ok) {
         setExistingPatientProfile(null);
       } else {
-        throw new Error('Failed to delete patient profile');
+        throw new Error("Failed to delete patient profile");
       }
     } catch (error) {
-      console.error('Error deleting patient profile:', error);
-      setError('Failed to delete patient profile');
+      console.error("Error deleting patient profile:", error);
+      setError("Failed to delete patient profile");
     }
   };
 
@@ -284,37 +300,50 @@ function EditStationPage() {
     setError(null);
     setSaving(true);
 
+    // Parse keywords from comma-separated input
+    const counterKeywords = String(fiveMinuteCounterKeywordsText || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     try {
       const res = await fetch(`/api/stations/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stationName: title,
           clinicalBackground: intro,
           difficulty: difficulty,
           systemPrompt: systemPrompt,
           analysisPrompt: analysisPrompt,
-          personaId: personaId,
-          isPublic: isPublic
+          heygenAvatarName: (heygenAvatarName || "").trim(),
+
+          // ✅ save 5-min fields
+          fiveMinuteQuestion: (fiveMinuteQuestion || "").trim(),
+          fiveMinuteRules: {
+            defaultNextIntentType: fiveMinuteDefaultNextIntentType,
+            counterQuestionKeywords: counterKeywords,
+          },
+
+          isPublic: isPublic,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to update station');
+        throw new Error(data.message || "Failed to update station");
       }
 
-      // Upload new references if any
       const referencesUploaded = await uploadReferences();
       if (!referencesUploaded) {
-        setError('Station updated but failed to upload some references');
+        setError("Station updated but failed to upload some references");
         return;
       }
 
-      router.push('/admin/stations');
+      router.push("/admin/stations");
     } catch (err) {
-      setError(err.message || 'An error occurred while saving');
+      setError(err.message || "An error occurred while saving");
     } finally {
       setSaving(false);
     }
@@ -325,11 +354,7 @@ function EditStationPage() {
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Edit Station</h1>
 
-        {error && (
-          <div className="alert alert-error mb-6">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert alert-error mb-6">{error}</div>}
 
         {loading ? (
           <div className="flex justify-center my-12">
@@ -341,12 +366,14 @@ function EditStationPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Title */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">Station Title</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    Station Title
+                  </label>
                   <input
                     type="text"
                     required
                     value={title}
-                    onChange={e => setTitle(e.target.value)}
+                    onChange={(e) => setTitle(e.target.value)}
                     className="input input-bordered w-full"
                     placeholder="Enter a descriptive title for this station"
                   />
@@ -354,12 +381,14 @@ function EditStationPage() {
 
                 {/* Clinical Background */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">Clinical Background</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    Clinical Background
+                  </label>
                   <textarea
                     required
                     rows={3}
                     value={intro}
-                    onChange={e => setIntro(e.target.value)}
+                    onChange={(e) => setIntro(e.target.value)}
                     className="textarea textarea-bordered w-full"
                     placeholder="Provide the clinical scenario and relevant patient information"
                   />
@@ -367,10 +396,12 @@ function EditStationPage() {
 
                 {/* Difficulty */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">Difficulty Level</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    Difficulty Level
+                  </label>
                   <select
                     value={difficulty}
-                    onChange={e => setDifficulty(e.target.value)}
+                    onChange={(e) => setDifficulty(e.target.value)}
                     className="select select-bordered w-full"
                   >
                     <option value="Low">Level - Low</option>
@@ -379,13 +410,95 @@ function EditStationPage() {
                   </select>
                 </div>
 
+                {/* ✅ 5-Minute Interrupt Question */}
+                <div>
+                  <label className="block mb-2 font-medium text-primary">
+                    5-Minute Interrupt Question (Optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={fiveMinuteQuestion}
+                    onChange={(e) => setFiveMinuteQuestion(e.target.value)}
+                    className="textarea textarea-bordered w-full"
+                    placeholder='Example: "Before we finish, can you quickly tell me what side effects I should watch for?"'
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The avatar asks this automatically around the 5-minute mark.
+                    After the pharmacist answers, it returns to normal script
+                    flow.
+                  </p>
+
+                  {/* Advanced toggle */}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost mt-2"
+                    onClick={() => setShowFiveMinuteAdvanced((prev) => !prev)}
+                  >
+                    {showFiveMinuteAdvanced ? "Hide Advanced" : "Show Advanced"}
+                  </button>
+
+                  {/* Advanced options */}
+                  {showFiveMinuteAdvanced && (
+                    <div className="mt-3 border border-gray-200 rounded-lg p-4 space-y-4">
+                      <div>
+                        <label className="block mb-2 font-medium text-primary">
+                          Default next behavior after pharmacist answers
+                        </label>
+                        <select
+                          value={fiveMinuteDefaultNextIntentType}
+                          onChange={(e) =>
+                            setFiveMinuteDefaultNextIntentType(e.target.value)
+                          }
+                          className="select select-bordered w-full"
+                        >
+                          <option value="confirm">
+                            Confirm (patient says ok/okay)
+                          </option>
+                          <option value="question">
+                            Treat as a question branch (future use)
+                          </option>
+                          <option value="script">
+                            Force script matching (future use)
+                          </option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          For now keep “confirm” so the avatar says “ok/okay”,
+                          then continues the normal script.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 font-medium text-primary">
+                          Counter-question keywords (comma-separated)
+                        </label>
+                        <input
+                          type="text"
+                          value={fiveMinuteCounterKeywordsText}
+                          onChange={(e) =>
+                            setFiveMinuteCounterKeywordsText(e.target.value)
+                          }
+                          className="input input-bordered w-full"
+                          placeholder="e.g., why, how long, can I, what if, is it safe"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Optional. Later you can use this list in the frontend
+                          to detect counter-questions and branch with if/else
+                          without DB changes.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* System Prompt */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">System Prompt</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    System Prompt
+                  </label>
                   <textarea
                     rows={8}
                     value={systemPrompt}
-                    onChange={e => setSystemPrompt(e.target.value)}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
                     className="textarea textarea-bordered w-full"
                     placeholder="Instructions for the AI system about this station"
                   />
@@ -393,26 +506,34 @@ function EditStationPage() {
 
                 {/* Analysis Prompt */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">Analysis Prompt</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    Analysis Prompt
+                  </label>
                   <textarea
                     rows={8}
                     value={analysisPrompt}
-                    onChange={e => setAnalysisPrompt(e.target.value)}
+                    onChange={(e) => setAnalysisPrompt(e.target.value)}
                     className="textarea textarea-bordered w-full"
                     placeholder="How responses should be analyzed and evaluated"
                   />
                 </div>
 
-                {/* Persona ID */}
+                {/* HeyGen Avatar Name */}
                 <div>
-                  <label className="block mb-2 font-medium text-primary">Persona ID</label>
+                  <label className="block mb-2 font-medium text-primary">
+                    HeyGen Avatar Name
+                  </label>
                   <input
                     type="text"
-                    value={personaId}
-                    onChange={e => setPersonaId(e.target.value)}
+                    value={heygenAvatarName}
+                    onChange={(e) => setHeygenAvatarName(e.target.value)}
                     className="input input-bordered w-full"
-                    placeholder="Optional: ID of associated persona"
+                    placeholder='e.g., "Anastasia_Grey_Shirt_public"'
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This is HeyGen’s Streaming Avatar <b>avatarName</b> used for
+                    real-time streaming.
+                  </p>
                 </div>
 
                 {/* Public toggle */}
@@ -421,31 +542,46 @@ function EditStationPage() {
                     id="public"
                     type="checkbox"
                     checked={isPublic}
-                    onChange={e => setIsPublic(e.target.checked)}
+                    onChange={(e) => setIsPublic(e.target.checked)}
                     className="checkbox"
                   />
-                  <label htmlFor="public" className="cursor-pointer">Make this station available to all users</label>
+                  <label htmlFor="public" className="cursor-pointer">
+                    Make this station available to all users
+                  </label>
                 </div>
 
-                {/* References Management Section */}
+                {/* References Management */}
                 <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium mb-4 text-primary">Station References</h3>
-                  
+                  <h3 className="text-lg font-medium mb-4 text-primary">
+                    Station References
+                  </h3>
+
                   {/* Existing References */}
                   {existingReferences.length > 0 && (
                     <div className="mb-6">
-                      <h4 className="font-medium mb-3 text-primary">Current References</h4>
+                      <h4 className="font-medium mb-3 text-primary">
+                        Current References
+                      </h4>
                       <div className="space-y-3">
                         {existingReferences.map((reference, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                          <div
+                            key={index}
+                            className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                          >
                             <div className="flex items-center justify-between">
                               <div>
-                                <h5 className="font-medium">{reference.name}</h5>
-                                <p className="text-sm text-gray-600">Reference {reference.index}</p>
+                                <h5 className="font-medium">
+                                  {reference.name}
+                                </h5>
+                                <p className="text-sm text-gray-600">
+                                  Reference {reference.index}
+                                </p>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => deleteExistingReference(reference.index)}
+                                onClick={() =>
+                                  deleteExistingReference(reference.index)
+                                }
                                 className="text-red-500 hover:text-red-700 text-sm font-medium"
                               >
                                 Delete
@@ -456,18 +592,29 @@ function EditStationPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Upload New References */}
                   <div>
-                    <h4 className="font-medium mb-3 text-primary">Upload New References</h4>
-                    <p className="text-sm text-gray-600 mb-4">Upload up to 3 PDF references that will be available to users during the station.</p>
-                    
+                    <h4 className="font-medium mb-3 text-primary">
+                      Upload New References
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Upload up to 3 PDF references that will be available to
+                      users during the station.
+                    </p>
+
                     <div className="space-y-4">
-                      {[0, 1, 2].map(index => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      {[0, 1, 2].map((index) => (
+                        <div
+                          key={index}
+                          className="border border-gray-200 rounded-lg p-4"
+                        >
                           <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-primary">New Reference {index + 1}</h5>
-                            {(referenceFiles[index] || referenceNames[index]) && (
+                            <h5 className="font-medium text-primary">
+                              New Reference {index + 1}
+                            </h5>
+                            {(referenceFiles[index] ||
+                              referenceNames[index]) && (
                               <button
                                 type="button"
                                 onClick={() => removeReference(index)}
@@ -477,25 +624,33 @@ function EditStationPage() {
                               </button>
                             )}
                           </div>
-                          
+
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-sm font-medium mb-1 text-primary">Reference Name</label>
+                              <label className="block text-sm font-medium mb-1 text-primary">
+                                Reference Name
+                              </label>
                               <input
                                 type="text"
                                 value={referenceNames[index]}
-                                onChange={e => handleNameChange(index, e.target.value)}
-                                placeholder={`e.g., Clinical Guidelines, Drug Protocol`}
+                                onChange={(e) =>
+                                  handleNameChange(index, e.target.value)
+                                }
+                                placeholder="e.g., Clinical Guidelines, Drug Protocol"
                                 className="input input-bordered w-full"
                               />
                             </div>
-                            
+
                             <div>
-                              <label className="block text-sm font-medium mb-1 text-primary">PDF File</label>
+                              <label className="block text-sm font-medium mb-1 text-primary">
+                                PDF File
+                              </label>
                               <input
                                 type="file"
                                 accept=".pdf"
-                                onChange={e => handleFileChange(index, e.target.files[0])}
+                                onChange={(e) =>
+                                  handleFileChange(index, e.target.files[0])
+                                }
                                 className="file-input file-input-bordered w-full"
                               />
                               {referenceFiles[index] && (
@@ -511,20 +666,28 @@ function EditStationPage() {
                   </div>
                 </div>
 
-                {/* Patient Profile Management Section */}
+                {/* Patient Profile */}
                 <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium mb-4 text-primary">Patient Profile</h3>
-                  
+                  <h3 className="text-lg font-medium mb-4 text-primary">
+                    Patient Profile
+                  </h3>
+
                   {/* Existing Patient Profile */}
                   {existingPatientProfile && (
                     <div className="mb-6">
-                      <h4 className="font-medium mb-3 text-primary">Current Patient Profile</h4>
+                      <h4 className="font-medium mb-3 text-primary">
+                        Current Patient Profile
+                      </h4>
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h5 className="font-medium">{existingPatientProfile.name}</h5>
+                            <h5 className="font-medium">
+                              {existingPatientProfile.name}
+                            </h5>
                             <p className="text-sm text-gray-600">
-                              {existingPatientProfile.type === 'pdf' ? 'PDF Document' : 'Image File'}
+                              {existingPatientProfile.type === "pdf"
+                                ? "PDF Document"
+                                : "Image File"}
                             </p>
                           </div>
                           <button
@@ -538,19 +701,24 @@ function EditStationPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Upload New Patient Profile */}
                   <div>
                     <h4 className="font-medium mb-3 text-primary">
-                      {existingPatientProfile ? 'Replace Patient Profile' : 'Upload Patient Profile'}
+                      {existingPatientProfile
+                        ? "Replace Patient Profile"
+                        : "Upload Patient Profile"}
                     </h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Upload a patient profile document or image that users can view during the station.
+                      Upload a patient profile document or image that users can
+                      view during the station.
                     </p>
-                    
+
                     <div className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h5 className="font-medium text-primary">Patient Profile Document</h5>
+                        <h5 className="font-medium text-primary">
+                          Patient Profile Document
+                        </h5>
                         {(patientProfileFile || patientProfileName) && (
                           <button
                             type="button"
@@ -561,25 +729,33 @@ function EditStationPage() {
                           </button>
                         )}
                       </div>
-                      
+
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-sm font-medium mb-1 text-primary">Profile Name</label>
+                          <label className="block text-sm font-medium mb-1 text-primary">
+                            Profile Name
+                          </label>
                           <input
                             type="text"
                             value={patientProfileName}
-                            onChange={e => handlePatientProfileNameChange(e.target.value)}
+                            onChange={(e) =>
+                              handlePatientProfileNameChange(e.target.value)
+                            }
                             placeholder="e.g., Patient Chart, Medical History"
                             className="input input-bordered w-full"
                           />
                         </div>
-                        
+
                         <div>
-                          <label className="block text-sm font-medium mb-1 text-primary">File (PDF, JPG, PNG)</label>
+                          <label className="block text-sm font-medium mb-1 text-primary">
+                            File (PDF, JPG, PNG)
+                          </label>
                           <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={e => handlePatientProfileFileChange(e.target.files[0])}
+                            onChange={(e) =>
+                              handlePatientProfileFileChange(e.target.files[0])
+                            }
                             className="file-input file-input-bordered w-full"
                           />
                           {patientProfileFile && (
@@ -595,13 +771,17 @@ function EditStationPage() {
 
                 {/* Submit */}
                 <div className="card-actions justify-end mt-6">
-                  <button type="button" className="btn btn-ghost" onClick={() => router.back()}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => router.back()}
+                  >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn btn-primary"
-                    disabled={saving}
+                    disabled={saving || uploadingReferences}
                   >
                     {saving ? (
                       <>
@@ -613,7 +793,9 @@ function EditStationPage() {
                         <span className="loading loading-spinner loading-xs mr-2"></span>
                         Uploading References...
                       </>
-                    ) : 'Save Changes'}
+                    ) : (
+                      "Save Changes"
+                    )}
                   </button>
                 </div>
               </form>
@@ -625,4 +807,4 @@ function EditStationPage() {
   );
 }
 
-export default EditStationPage; 
+export default EditStationPage;
