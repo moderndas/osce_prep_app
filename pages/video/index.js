@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/router";
 
 // Toast notification component
 const Toast = ({ message, onClose }) => {
@@ -13,19 +13,23 @@ const Toast = ({ message, onClose }) => {
     <>
       {/* Full screen overlay */}
       <div className="fixed inset-0 bg-black bg-opacity-70 z-[100]" />
-      
+
       {/* Centered popup */}
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4">
-        <div 
+        <div
           className="bg-green-50 rounded-2xl shadow-2xl w-[90%] max-w-4xl mx-auto animate-fade-in border-4 border-green-600"
-          style={{ minHeight: '40vh' }}
+          style={{ minHeight: "40vh" }}
         >
           <div className="p-12">
             <div className="flex flex-col items-center justify-center h-full">
               <div className="w-full text-center mb-8">
-                <h2 className="text-4xl font-bold text-green-800 mb-8">Important Question</h2>
+                <h2 className="text-4xl font-bold text-green-800 mb-8">
+                  Important Question
+                </h2>
                 <div className="bg-white/50 p-10 rounded-xl border-2 border-green-200 mb-8">
-                  <p className="text-4xl text-green-900 leading-relaxed font-medium">{message}</p>
+                  <p className="text-4xl text-green-900 leading-relaxed font-medium">
+                    {message}
+                  </p>
                 </div>
               </div>
               <div className="text-xl text-green-700 animate-pulse">
@@ -42,7 +46,7 @@ const Toast = ({ message, onClose }) => {
 // Text-to-speech utility function
 const speakText = (text) => {
   if (!window.speechSynthesis) {
-    console.warn('Speech synthesis not supported');
+    console.warn("Speech synthesis not supported");
     return;
   }
   window.speechSynthesis.cancel();
@@ -54,7 +58,7 @@ const speakText = (text) => {
 };
 
 const MAX_FILE_SIZE = 314572800; // 300MB in bytes
-const MIME_TYPE = 'video/webm;codecs=vp9,opus';
+const MIME_TYPE = "video/webm;codecs=vp9,opus";
 
 export default function VideoPage() {
   const router = useRouter();
@@ -63,13 +67,13 @@ export default function VideoPage() {
   const [recordedBlob, setRecordedBlob] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [stream, setStream] = useState(null);
   const [stationData, setStationData] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadStatus, setUploadStatus] = useState("");
   const [currentToast, setCurrentToast] = useState(null);
-  
+
   const mediaRecorderRef = useRef(null);
   const videoPreviewRef = useRef(null);
   const chunksRef = useRef([]);
@@ -81,10 +85,11 @@ export default function VideoPage() {
   useEffect(() => {
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
       if (initialPromptTimer.current) clearTimeout(initialPromptTimer.current);
-      if (fiveMinutePromptTimer.current) clearTimeout(fiveMinutePromptTimer.current);
+      if (fiveMinutePromptTimer.current)
+        clearTimeout(fiveMinutePromptTimer.current);
       window.speechSynthesis.cancel();
     };
   }, [stream]);
@@ -93,15 +98,15 @@ export default function VideoPage() {
   useEffect(() => {
     const fetchStationData = async () => {
       if (!stationId) return;
-      
+
       try {
         const response = await fetch(`/api/stations/${stationId}`);
-        if (!response.ok) throw new Error('Failed to fetch station data');
+        if (!response.ok) throw new Error("Failed to fetch station data");
         const data = await response.json();
         setStationData(data.data);
       } catch (error) {
-        setError('Failed to load station data');
-        console.error('Error:', error);
+        setError("Failed to load station data");
+        console.error("Error:", error);
       }
     };
 
@@ -110,15 +115,15 @@ export default function VideoPage() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: 'user'
+          facingMode: "user",
         },
-        audio: true 
+        audio: true,
       });
-      
+
       setStream(stream);
       if (videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = stream;
@@ -127,14 +132,14 @@ export default function VideoPage() {
       }
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: "video/webm;codecs=vp9",
       });
       mediaRecorderRef.current = mediaRecorder;
-      
+
       const chunks = [];
       mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunks, { type: "video/webm" });
         setRecordedBlob(blob);
         const url = URL.createObjectURL(blob);
         if (videoPreviewRef.current) {
@@ -161,8 +166,8 @@ export default function VideoPage() {
         }, 300000);
       }
     } catch (err) {
-      console.error('Recording error:', err);
-      setError('Failed to start recording: ' + err.message);
+      console.error("Recording error:", err);
+      setError("Failed to start recording: " + err.message);
     }
   };
 
@@ -170,22 +175,23 @@ export default function VideoPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
+
       // Clear timers
       if (initialPromptTimer.current) clearTimeout(initialPromptTimer.current);
-      if (fiveMinutePromptTimer.current) clearTimeout(fiveMinutePromptTimer.current);
+      if (fiveMinutePromptTimer.current)
+        clearTimeout(fiveMinutePromptTimer.current);
       window.speechSynthesis.cancel();
     }
   };
 
   const handleFileUpload = (e) => {
-    setError('');
+    setError("");
     const file = e.target.files[0];
-    
+
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE) {
-      setError('File size exceeds 300MB limit');
+      setError("File size exceeds 300MB limit");
       return;
     }
 
@@ -196,40 +202,40 @@ export default function VideoPage() {
     try {
       const videoBlob = recordedBlob || uploadedFile;
       if (!videoBlob || !stationId) {
-        throw new Error('Video and station ID are required');
+        throw new Error("Video and station ID are required");
       }
 
       setIsUploading(true);
-      setUploadStatus('Uploading video...');
+      setUploadStatus("Uploading video...");
 
       // Create FormData and append video
       const formData = new FormData();
-      formData.append('video', videoBlob);
-      formData.append('stationId', stationId);
+      formData.append("video", videoBlob);
+      formData.append("stationId", stationId);
 
       // Upload to server
-      const response = await fetch('/api/video/uploadVideo', {
-        method: 'POST',
-        body: formData
+      const response = await fetch("/api/video/uploadVideo", {
+        method: "POST",
+        body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload video');
+        throw new Error("Failed to upload video");
       }
 
       const data = await response.json();
-      
+
       if (!data.success) {
-        throw new Error(data.message || 'Failed to upload video');
+        throw new Error(data.message || "Failed to upload video");
       }
 
       // Navigate to analysis with the video ID from the response
       router.push(`/analysis/${stationId}?videoId=${data.videoId}`);
     } catch (err) {
-      console.error('Error uploading video:', err);
+      console.error("Error uploading video:", err);
       setError(err.message);
       setIsUploading(false);
-      setUploadStatus('');
+      setUploadStatus("");
     }
   };
 
@@ -244,9 +250,11 @@ export default function VideoPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <p className="text-red-600">Invalid access. Please select a station first.</p>
+          <p className="text-red-600">
+            Invalid access. Please select a station first.
+          </p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push("/dashboard")}
             className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Return to Dashboard
@@ -273,13 +281,13 @@ export default function VideoPage() {
           {!mode && !recordedBlob && !uploadedFile && (
             <div className="space-x-4">
               <button
-                onClick={() => setMode('record')}
+                onClick={() => setMode("record")}
                 className="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600"
               >
                 Record Video
               </button>
               <button
-                onClick={() => setMode('upload')}
+                onClick={() => setMode("upload")}
                 className="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
               >
                 Upload Video
@@ -287,7 +295,7 @@ export default function VideoPage() {
             </div>
           )}
 
-          {mode === 'record' && !recordedBlob && (
+          {mode === "record" && !recordedBlob && (
             <div className="space-y-6">
               <div className="relative w-full min-h-[60vh]">
                 <div className="absolute inset-0 bg-black rounded-xl overflow-hidden shadow-2xl border-2 border-gray-800">
@@ -298,15 +306,17 @@ export default function VideoPage() {
                     muted
                     className="absolute inset-0 w-full h-full"
                     style={{
-                      transform: 'scaleX(-1)',
-                      objectFit: 'contain',
-                      backgroundColor: 'black'
+                      transform: "scaleX(-1)",
+                      objectFit: "contain",
+                      backgroundColor: "black",
                     }}
                   />
                   {isRecording && (
                     <div className="absolute top-6 right-6 flex items-center space-x-3 bg-black bg-opacity-75 px-6 py-3 rounded-full shadow-lg z-10">
                       <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse"></div>
-                      <span className="text-white text-lg font-semibold">Recording in Progress</span>
+                      <span className="text-white text-lg font-semibold">
+                        Recording in Progress
+                      </span>
                     </div>
                   )}
                 </div>
@@ -331,7 +341,7 @@ export default function VideoPage() {
             </div>
           )}
 
-          {mode === 'upload' && !uploadedFile && (
+          {mode === "upload" && !uploadedFile && (
             <div className="space-y-4">
               <input
                 type="file"
@@ -364,7 +374,7 @@ export default function VideoPage() {
                     setRecordedBlob(null);
                     setUploadedFile(null);
                     setError(null);
-                    setUploadStatus('');
+                    setUploadStatus("");
                   }}
                   className="bg-red-500 text-white px-6 py-3 rounded hover:bg-red-600"
                   disabled={isUploading}
@@ -376,7 +386,7 @@ export default function VideoPage() {
                   className="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
                   disabled={isUploading}
                 >
-                  {isUploading ? uploadStatus : 'Proceed to Analysis'}
+                  {isUploading ? uploadStatus : "Proceed to Analysis"}
                 </button>
               </div>
             </div>
@@ -398,11 +408,8 @@ export default function VideoPage() {
 
       {/* Toast Notifications */}
       {currentToast && (
-        <Toast
-          message={currentToast}
-          onClose={() => setCurrentToast(null)}
-        />
+        <Toast message={currentToast} onClose={() => setCurrentToast(null)} />
       )}
     </div>
   );
-} 
+}

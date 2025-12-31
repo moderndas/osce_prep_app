@@ -1,10 +1,10 @@
-import dbConnect from '../../../lib/db';
-import Analysis from '../../../models/Analysis';
-import axios from 'axios';
+import dbConnect from "../../../lib/db";
+import Analysis from "../../../models/Analysis";
+import axios from "axios";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
   try {
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       eyeContactAnalysis: req.body.eyeContactAnalysis,
       voiceAnalysis: req.body.voiceAnalysis,
       overallScore: req.body.overallScore,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
 
     res.status(201).json({ success: true, data: analysis });
@@ -31,38 +31,40 @@ export default async function handler(req, res) {
 const processAudioAndTranscribe = async (videoBlob) => {
   // Extract audio
   const audioBlob = await extractAudioFromVideo(videoBlob);
-  
+
   // Initialize AssemblyAI
   const assembly = axios.create({
-    baseURL: 'https://api.assemblyai.com/v2',
+    baseURL: "https://api.assemblyai.com/v2",
     headers: {
-      authorization: process.env.ASSEMBLY_AI_KEY,
-      'content-type': 'application/json',
+      authorization: process.env.ASSEMBLYAI_API_KEY,
+      "content-type": "application/json",
     },
   });
 
   // Upload and transcribe
   try {
     // Upload file
-    const uploadResponse = await assembly.post('/upload', audioBlob);
-    
+    const uploadResponse = await assembly.post("/upload", audioBlob);
+
     // Start transcription
-    const transcriptResponse = await assembly.post('/transcript', {
+    const transcriptResponse = await assembly.post("/transcript", {
       audio_url: uploadResponse.data.upload_url,
-      language_code: 'en',
+      language_code: "en",
     });
 
     // Poll for completion
     const checkCompletionInterval = setInterval(async () => {
-      const transcript = await assembly.get(`/transcript/${transcriptResponse.data.id}`);
-      
-      if (transcript.data.status === 'completed') {
+      const transcript = await assembly.get(
+        `/transcript/${transcriptResponse.data.id}`
+      );
+
+      if (transcript.data.status === "completed") {
         clearInterval(checkCompletionInterval);
         return transcript.data;
       }
     }, 3000);
   } catch (error) {
-    console.error('Transcription error:', error);
+    console.error("Transcription error:", error);
     throw error;
   }
-}; 
+};
